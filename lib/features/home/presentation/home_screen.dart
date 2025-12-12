@@ -7,6 +7,7 @@ import '../../../common_widgets/status_chip.dart';
 import '../../../config/style.dart';
 import 'base_screen.dart';
 import 'home_detail_dialog.dart' hide StatusChip;
+import 'map_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
