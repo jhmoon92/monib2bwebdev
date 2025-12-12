@@ -11,33 +11,27 @@ class MapSample extends StatefulWidget {
 }
 
 class MapSampleState extends State<MapSample> {
-  final Completer<GoogleMapController> _controller =
-  Completer<GoogleMapController>();
+  final Completer<GoogleMapController> _controller = Completer<GoogleMapController>();
 
-  // 1. 주요 위치 정의 (휴맥스 빌리지, 63빌딩)
-  // 휴맥스 빌리지 (경기도 성남시 분당구 수내동) 근사 좌표
-  static const LatLng _humaxVillage = LatLng(37.3784792, 127.1127908);
-  // 63 빌딩 (서울 영등포구 여의도동) 좌표
-  static const LatLng _sixtyThreeBuilding = LatLng(37.5196568, 126.9399392);
-// 마커 위치 리스트
-  final List<LatLng> _markerPositions = [
-    _humaxVillage,
-    _sixtyThreeBuilding,
-  ];
+  late LatLng _humaxVillage;
+  late LatLng _sixtyThreeBuilding;
+
+  List<LatLng> _markerPositions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _humaxVillage = LatLng(37.3784792, 127.1127908);
+    _sixtyThreeBuilding = LatLng(37.5196568, 126.9399392);
+    _markerPositions.add(_humaxVillage);
+    _markerPositions.add(_sixtyThreeBuilding);
+  }
 
   // 2. 마커 세트 생성 (build 시점에 _markerPositions를 사용하여 생성)
   Set<Marker> _createMarkers() {
     return {
-      Marker(
-        markerId: const MarkerId('humax_village'),
-        position: _humaxVillage,
-        infoWindow: const InfoWindow(title: '휴맥스 빌리지'),
-      ),
-      Marker(
-        markerId: const MarkerId('sixty_three_building'),
-        position: _sixtyThreeBuilding,
-        infoWindow: const InfoWindow(title: '63 빌딩'),
-      ),
+      Marker(markerId: const MarkerId('humax_village'), position: _humaxVillage, infoWindow: const InfoWindow(title: '휴맥스 빌리지')),
+      Marker(markerId: const MarkerId('sixty_three_building'), position: _sixtyThreeBuilding, infoWindow: const InfoWindow(title: '63 빌딩')),
     };
   }
 
@@ -76,7 +70,6 @@ class MapSampleState extends State<MapSample> {
     target: LatLng(37.5665, 126.9780), // 서울 시청 (초기 로딩 시의 임시 중심점)
     zoom: 10.0,
   );
-
 
   @override
   Widget build(BuildContext context) {
