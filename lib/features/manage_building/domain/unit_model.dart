@@ -93,6 +93,24 @@ class ManagerDetail {
   factory ManagerDetail.fromJson(Map<String, dynamic> json) {
     return ManagerDetail(name: json['name'] as String, account: json['account'] as String, contact: json['contact'] as String);
   }
+
+  // **** 여기에 아래 두 메서드를 추가하세요 ****
+
+  // 1. operator == 오버라이드: name, account, contact가 모두 같을 때 true 반환
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    // 타입이 같고, 필드 값이 모두 같은지 확인
+    return other is ManagerDetail &&
+        name == other.name &&
+        account == other.account &&
+        contact == other.contact;
+  }
+
+  // 2. hashCode 오버라이드: Set이 중복을 효율적으로 찾을 수 있도록 필드들을 조합하여 해시 코드를 생성
+  @override
+  int get hashCode => name.hashCode ^ account.hashCode ^ contact.hashCode;
 }
 
 class InstalledDevice {
@@ -1336,3 +1354,17 @@ final List<Device> allGlobalDevicesList = buildings
   });
 })
     .toList(); // 최종 리스트로 변환
+
+
+final List<ManagerDetail> allManagersWithDuplicates = allUnits
+    .map((unit) => unit.manager)
+    .toList();
+
+// 2. toSet()을 사용하여 중복 제거 (수정된 operator ==와 hashCode 사용)
+// 이제 name, account, contact가 같으면 하나만 남깁니다.
+final Set<ManagerDetail> uniqueManagersSet = allManagersWithDuplicates.toSet();
+
+// 3. 다시 List로 변환
+final List<ManagerDetail> uniqueManagersList = uniqueManagersSet.toList();
+
+// uniqueManagersList: [ManagerDetail(김철수), ManagerDetail(이영희)]

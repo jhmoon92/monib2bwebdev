@@ -96,7 +96,7 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                               _buildMenuItem("assets/images/ic_24_home.svg", "Home(Dashboard)", 0),
                               _buildMenuItem("assets/images/ic_24_alert.svg", "Alerts", 1),
                               _buildMenuItem("assets/images/ic_24_office.svg", "Managed Buildings", 2),
-                              _buildMenuItem("assets/images/ic_24_pod.svg", "Moni Pod Assets", 3),
+                              _buildMenuItem("assets/images/ic_24_pod.svg", "Device Assets", 3),
                               _buildMenuItem("assets/images/ic_24_people.svg", "Admin Members", 4),
                             ],
                           ),

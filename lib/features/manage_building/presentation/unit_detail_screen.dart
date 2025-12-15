@@ -8,6 +8,7 @@ import 'package:moni_pod_web/features/manage_building/presentation/building_deta
 import '../../../common/util/util.dart';
 import '../../../common_widgets/button.dart';
 import '../../../common_widgets/input_box.dart';
+import '../../../common_widgets/manger_drop_down.dart';
 import '../../../config/style.dart';
 import '../domain/unit_model.dart';
 
@@ -115,10 +116,17 @@ class _LeftPanel extends StatelessWidget {
   }
 }
 
-class _ManagerCard extends StatelessWidget {
+class _ManagerCard extends StatefulWidget {
   const _ManagerCard({required this.unitInfo});
 
   final Unit unitInfo;
+
+  @override
+  State<_ManagerCard> createState() => _ManagerCardState();
+}
+
+class _ManagerCardState extends State<_ManagerCard> {
+  bool _isEditing = false;
 
   Widget _buildInfoRow(String key, String value) {
     return Padding(
@@ -162,18 +170,59 @@ class _ManagerCard extends StatelessWidget {
               SizedBox(width: 8),
               Text('Manager', style: titleLarge(commonBlack)),
               Expanded(child: Container()),
-              InkWell(
-                onTap: () {}, // 취소 시 false 전달
-                child: const Icon(Icons.edit_outlined, color: commonGrey5, size: 20),
-              ),
+              !_isEditing
+                  ? InkWell(
+                    onTap: () {
+                      setState(() {
+                        _isEditing = !_isEditing;
+                      });
+                    },
+                    child: const Icon(Icons.edit_outlined, color: commonGrey5, size: 20),
+                  )
+                  : Row(
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            if (_isEditing) {
+                              _isEditing = !_isEditing;
+                            }
+                          });
+                        },
+                        child: const Icon(Icons.close, color: Colors.red, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            if (_isEditing) {
+                              _isEditing = !_isEditing;
+                            }
+                          });
+                        }, // 저장 시 true 전달
+                        child: const Icon(Icons.check, color: themeGreen, size: 24),
+                      ),
+                    ],
+                  ),
             ],
           ),
           const Divider(height: 24, thickness: 1, color: commonGrey2),
-          _buildInfoRow('Name', unitInfo.manager.name),
-          const SizedBox(height: 8),
-          _buildInfoRow('Account', unitInfo.manager.account),
-          const SizedBox(height: 8),
-          _buildInfoRow('Contact', unitInfo.manager.contact),
+          _isEditing
+              ? MangerDropDown(
+                onChanged: (String value) {
+                  setState(() {
+                  });
+                },
+              )
+              : Column(
+                children: [
+                  _buildInfoRow('Name', widget.unitInfo.manager.name),
+                  const SizedBox(height: 8),
+                  _buildInfoRow('Account', widget.unitInfo.manager.account),
+                  const SizedBox(height: 8),
+                  _buildInfoRow('Contact', widget.unitInfo.manager.contact),
+                ],
+              ),
         ],
       ),
     );
@@ -511,14 +560,12 @@ class _StatusCard extends StatelessWidget {
                 : 'assets/images/ic_48_wi-fi.svg',
             width: 48,
             fit: BoxFit.fitWidth,
-            colorFilter: unit.status == 'critical' || unit.status == 'warning' // 이 부분을 수정했습니다.
-                ? null // 'critical' 또는 'warning'일 때는 ColorFilter를 적용하지 않음
-                : ColorFilter.mode(
-              unit.status == 'offline'
-                  ? commonGrey5
-                  : pointGreen,
-              BlendMode.srcIn,
-            ),
+            colorFilter:
+                unit.status == 'critical' ||
+                        unit.status ==
+                            'warning' // 이 부분을 수정했습니다.
+                    ? null // 'critical' 또는 'warning'일 때는 ColorFilter를 적용하지 않음
+                    : ColorFilter.mode(unit.status == 'offline' ? commonGrey5 : pointGreen, BlendMode.srcIn),
           ),
           const SizedBox(width: 16),
           Text(
