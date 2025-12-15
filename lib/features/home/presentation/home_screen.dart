@@ -173,7 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
                     ),
                   ),
-                  Expanded(child: Container(alignment: Alignment.center, child: MapSample())),
+                  Expanded(child: Container(alignment: Alignment.center, child: GoogleMapSearchScreen())),
                 ],
               ),
             ),
