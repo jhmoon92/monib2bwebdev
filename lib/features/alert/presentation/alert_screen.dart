@@ -52,40 +52,44 @@ class _AlertScreenState extends ConsumerState<AlertScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            children: [
-              topTitle('System Alerts', 'Real-time notifications and events', _lastUpdatedTime, () {
-                setState(() {
-                  _lastUpdatedTime = DateTime.now();
-                });
-              }),
-              const SizedBox(height: 24),
-              _buildFiltersAndCategories(),
-              const SizedBox(height: 16),
-            ],
-          ),
+        Column(
+          children: [
+            topTitle('System Alerts', 'Real-time notifications and events', _lastUpdatedTime, () {
+              setState(() {
+                _lastUpdatedTime = DateTime.now();
+              });
+            }),
+            const SizedBox(height: 4),
+            _buildFiltersAndCategories(),
+            const SizedBox(height: 16),
+          ],
         ),
         Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.only(top: 8),
-            itemCount: _filteredAlerts.length,
-            itemBuilder: (context, index) {
-              final alert = _filteredAlerts[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: CustomAlertItem(
-                  level: alert.level,
-                  title: alert.title,
-                  time: alert.time,
-                  message: alert.message,
-                  location: alert.location,
-                  unit: alert.unit,
-                  isNew: alert.isNew,
-                ),
-              );
-            },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: commonWhite),
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: _filteredAlerts.length,
+              itemBuilder: (context, index) {
+                final alert = _filteredAlerts[index];
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 10, 24, 10),
+                  child: Container(
+                    margin: EdgeInsets.only(top: index == 0 ? 14 : 0, bottom: index == _filteredAlerts.length - 1 ? 14 : 0),
+                    child: CustomAlertItem(
+                      level: alert.level,
+                      title: alert.title,
+                      time: alert.time,
+                      message: alert.message,
+                      location: alert.location,
+                      unit: alert.unit,
+                      isNew: alert.isNew,
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ],
@@ -94,7 +98,7 @@ class _AlertScreenState extends ConsumerState<AlertScreen> {
 
   Widget _buildFiltersAndCategories() {
     // Breakpoint 설정 (예: 600px 미만이면 줄 바꿈)
-    const double breakpoint = 600.0;
+    const double breakpoint = 900.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -114,12 +118,17 @@ class _AlertScreenState extends ConsumerState<AlertScreen> {
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), spreadRadius: 1, blurRadius: 2, offset: const Offset(0, 2))],
+                  border: Border.all(color: commonGrey2),
+                  color: commonWhite,
                 ),
                 child: Row(
                   children: [
                     _buildFilterButton('All', _selectedFilter == 'All'),
+                    Container(height: 24, width: 1, color: commonGrey2),
+
                     _buildFilterButton('Critical', _selectedFilter == 'Critical'),
+                    Container(height: 24, width: 1, color: commonGrey2),
+
                     _buildFilterButton('Warning', _selectedFilter == 'Warning'),
                   ],
                 ),
@@ -143,13 +152,16 @@ class _AlertScreenState extends ConsumerState<AlertScreen> {
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), spreadRadius: 1, blurRadius: 2, offset: const Offset(0, 2))],
+                  border: Border.all(color: commonGrey2),
+                  color: commonWhite,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildFilterButton('All', _selectedFilter == 'All'),
+                    Container(height: 24, width: 1, color: commonGrey2),
                     _buildFilterButton('Critical', _selectedFilter == 'Critical'),
+                    Container(height: 24, width: 1, color: commonGrey2),
                     _buildFilterButton('Warning', _selectedFilter == 'Warning'),
                   ],
                 ),
@@ -179,15 +191,11 @@ class _AlertScreenState extends ConsumerState<AlertScreen> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? themeYellow : Colors.white,
-          borderRadius: BorderRadius.horizontal(
-            left: text == 'All' ? const Radius.circular(4) : Radius.zero,
-            right: text == 'Warning' ? const Radius.circular(4) : Radius.zero,
-          ),
-        ),
-        child: Text(text, style: bodyTitle(isSelected ? commonWhite : commonGrey6)),
+        width: 132,
+        padding: EdgeInsets.symmetric(vertical: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: isSelected ? themeYellow : Colors.white, borderRadius: BorderRadius.circular(4)),
+        child: Text(text, style: bodyTitle(isSelected ? commonWhite : commonGrey5)),
       ),
     );
   }
@@ -230,92 +238,75 @@ class CustomAlertItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(left: BorderSide(color: color, width: 12.0)),
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [BoxShadow(color: commonBlack.withOpacity(0.2), spreadRadius: 1, blurRadius: 2, offset: const Offset(0, 2))],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          levelText == 'normal'
-              ? const SizedBox(width: 48)
-              : Padding(
-                padding: const EdgeInsets.only(top: 14),
-                child: SvgPicture.asset(
-                  levelText == 'critical' ? 'assets/images/ic_32_critical.svg' : 'assets/images/ic_32_warning.svg',
-                  width: 48,
-                  fit: BoxFit.fitWidth,
-                ),
-              ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    StatusChip(status: levelText),
-                    const SizedBox(width: 8),
-                    Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Row(
-                        children: [
-                          SvgPicture.asset(
-                            "assets/images/ic_24_time.svg",
-                            width: 16,
-                            fit: BoxFit.fitWidth,
-                            colorFilter: ColorFilter.mode(commonGrey5, BlendMode.srcIn),
-                          ),
-                          const SizedBox(width: 2),
-                          Text(time, style: captionCommon(commonGrey5)),
-                        ],
-                      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          height: 84,
+          width: 8,
+          color:
+              levelText == 'critical'
+                  ? Colors.red
+                  : levelText == 'warning'
+                  ? themeYellow
+                  : pointGreen,
+        ),
+        const SizedBox(width: 24),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (isNew)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: newBlue, borderRadius: BorderRadius.circular(4)),
+                      child: Text('NEW', style: captionTitle(commonWhite)),
                     ),
-                    const Spacer(),
-                    if (isNew)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(4)),
-                        child: Text('NEW', style: captionTitle(themeBlue)),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(title, style: titleMedium(commonBlack)),
-                const SizedBox(height: 12),
-                Text(message, style: bodyCommon(commonGrey5)),
-                const SizedBox(height: 8),
-                Row(children: [_buildTag(location, true), const SizedBox(width: 8), _buildTag(unit, false)]),
-              ],
-            ),
+                  StatusChip(status: levelText),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(message, style: titleSmall(commonBlack)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  SvgPicture.asset(
+                    "assets/images/ic_24_time.svg",
+                    width: 16,
+                    fit: BoxFit.fitWidth,
+                    colorFilter: ColorFilter.mode(commonGrey5, BlendMode.srcIn),
+                  ),
+                  const SizedBox(width: 2),
+                  Text(time, style: captionCommon(commonGrey5)),
+                  const SizedBox(width: 16),
+                  _buildTag(location, true),
+                  const SizedBox(width: 16),
+                  _buildTag(unit, false),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildTag(String text, bool isBuilding) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: commonGrey2, borderRadius: BorderRadius.circular(4)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SvgPicture.asset(
-            isBuilding ? "assets/images/ic_24_office.svg" : "assets/images/ic_24_unit.svg",
-            width: 16,
-            fit: BoxFit.fitWidth,
-            colorFilter: ColorFilter.mode(commonGrey5, BlendMode.srcIn),
-          ),
-          const SizedBox(width: 4),
-          Text(text, style: captionCommon(commonGrey5)),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SvgPicture.asset(
+          isBuilding ? "assets/images/ic_24_office.svg" : "assets/images/ic_24_unit.svg",
+          width: 16,
+          fit: BoxFit.fitWidth,
+          colorFilter: ColorFilter.mode(commonGrey5, BlendMode.srcIn),
+        ),
+        const SizedBox(width: 4),
+        Text(text, style: captionCommon(commonGrey5)),
+      ],
     );
   }
 }

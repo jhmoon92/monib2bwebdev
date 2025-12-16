@@ -48,6 +48,7 @@ const Color pointGreen = Color(0xFF6FD94A);
 const Color pointGreen10 = Color(0x1A6FD94A);
 const Color pointGreen50 = Color(0x806FD94A);
 const Color pointRed = Color(0xFFDC362E);
+const Color newBlue = Color(0xFF1678F9);
 
 // grayscale
 const Color commonBlack = Color(0xFF000000);

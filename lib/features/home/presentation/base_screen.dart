@@ -70,21 +70,19 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
           // 1. 왼쪽 사이드바 (마스킹 기법 적용)
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: _isExpanded ? 240 : 70, // 겉모양(창문) 너비
+            width: _isExpanded ? 216 : 70, // 겉모양(창문) 너비
             curve: Curves.easeInOut,
-            color: commonGrey2,
-
+            color: commonWhite,
             // [핵심 1] 창문보다 내용물이 클 때 밖으로 튀어나온 부분을 잘라냄 (에러 방지)
             clipBehavior: Clip.hardEdge,
-
             child: SingleChildScrollView(
-              // [핵심 2] 가로 공간을 무한대로 제공하여 'RenderFlex overflowed' 에러 원천 차단
+              padding: EdgeInsets.zero,
               scrollDirection: Axis.horizontal,
               physics: const NeverScrollableScrollPhysics(), // 사용자가 스크롤하지 못하게 고정
               child: Stack(
                 children: [
                   Container(
-                    width: 240, // [핵심 3] 내부는 접혀있든 펴져있든 항상 '넓은 상태'로 고정
+                    width: 216,
                     padding: EdgeInsets.zero,
                     child: Column(
                       children: [
@@ -93,7 +91,7 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                           child: ListView(
                             padding: EdgeInsets.zero,
                             children: [
-                              _buildMenuItem("assets/images/ic_24_home.svg", "Home(Dashboard)", 0),
+                              _buildMenuItem("assets/images/ic_24_home.svg", "Dashboard", 0),
                               _buildMenuItem("assets/images/ic_24_alert.svg", "Alerts", 1),
                               _buildMenuItem("assets/images/ic_24_office.svg", "Managed Buildings", 2),
                               _buildMenuItem("assets/images/ic_24_pod.svg", "Device Assets", 3),
@@ -104,7 +102,7 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
 
                         // 2. 최하단 Manager 프로필 영역
                         Container(
-                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                           child: Row(
                             children: [
                               // 2-1. 이미지
@@ -115,11 +113,10 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                                   });
                                 },
                                 child: Container(
-                                  height: 32,
-                                  width: 32,
-                                  // 70px 상태일 때 중앙 정렬 효과를 위해 마진 조정 ( (70-20-32)/2 = 9 )
-                                  margin: EdgeInsets.only(left: _isExpanded ? 8 : 9),
-                                  decoration: const BoxDecoration(shape: BoxShape.circle, color: themeYellow),
+                                  height: 24,
+                                  width: 24,
+                                  // margin: EdgeInsets.only(left: _isExpanded ? 8 : 9),
+                                  decoration: const BoxDecoration(shape: BoxShape.circle, color: commonGrey5),
                                   alignment: Alignment.center,
                                   child: SvgPicture.asset(
                                     "assets/images/ic_24_person.svg",
@@ -138,8 +135,8 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                                   opacity: _isExpanded ? 1.0 : 0.0,
                                   child: Row(
                                     children: [
-                                      Text("Manager", style: bodyCommon(commonGrey7), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                      SizedBox(width: 80),
+                                      Text("Master", style: bodyCommon(commonBlack), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      SizedBox(width: 64),
                                       InkWell(
                                         onTap: () {
                                           setState(() {
@@ -160,16 +157,16 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                   ),
                   _viewSignOut
                       ? Positioned(
-                        bottom: 54,
-                        right: 16,
+                        bottom: 44,
+                        right: 20,
                         child: InkWell(
                           onTap: () {
                             context.goNamed(AppRoute.signIn.name);
                           },
                           child: Container(
                             padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(color: commonWhite, borderRadius: BorderRadius.circular(8)),
-                            child: Text("Sign Out", style: bodyTitle(commonGrey5), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            decoration: BoxDecoration(color: commonGrey2, borderRadius: BorderRadius.circular(8)),
+                            child: Text("Sign Out", style: bodyTitle(commonGrey7), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                         ),
                       )
@@ -178,7 +175,7 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
               ),
             ),
           ),
-          Expanded(child: Padding(padding: EdgeInsets.only(left: 16, right: 16, top: 16), child: widget.child)),
+          Expanded(child: Container(color: commonGrey2, padding: EdgeInsets.only(left: 24, right: 24, top: 24), child: widget.child)),
 
           // Expanded(child: Padding(padding: EdgeInsets.all(16), child: selectMenu == 0 ? topTitle('Dashboard') : selectMenu == 1 ? ManageBuildingScreen() : AssetManagementScreen())),
         ],
@@ -213,8 +210,8 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
             isSelected
                 ? themeYellow
                 : isHovered
-                ? commonGrey3.withOpacity(0.5)
-                : commonGrey2,
+                ? commonGrey1.withOpacity(0.5)
+                : commonWhite,
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Row(
           children: [
@@ -225,7 +222,7 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                 children: [
                   SvgPicture.asset(
                     iconPath,
-                    colorFilter: ColorFilter.mode(selectMenu == index ? commonWhite : commonGrey7, BlendMode.srcIn),
+                    colorFilter: ColorFilter.mode(selectMenu == index ? commonWhite : commonBlack, BlendMode.srcIn),
                   ),
                   title == 'Alerts' && alertList.where((alert) => alert.isNew).isNotEmpty
                       ? Positioned(
@@ -237,13 +234,13 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             AnimatedOpacity(
               opacity: _isExpanded ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 200),
               child: Text(
                 title,
-                style: selectMenu == index ? bodyTitle(commonWhite) : bodyCommon(commonGrey7),
+                style: selectMenu == index ? bodyTitle(commonWhite) : bodyCommon(commonBlack),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -255,7 +252,7 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                   child: Container(
                     width: 24,
                     height: 24,
-                    margin: const EdgeInsets.only(left: 104),
+                    margin: const EdgeInsets.only(left: 70),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.red),
                     child: Text(
@@ -289,26 +286,32 @@ Widget topTitle(String title, String? subtitle, DateTime lastUpdatedTime, VoidCa
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: headLineSmall(commonBlack)),
-                  subtitle != null ? Text(subtitle, style: bodyCommon(commonGrey5)) : Container(),
+
+                  subtitle != null
+                      ? Padding(padding: EdgeInsets.only(top: 2), child: Text(subtitle, style: bodyCommon(commonGrey5)))
+                      : Container(),
                 ],
               ),
               Expanded(child: Container()),
               if (!hideUpdateText)
-                Text('Updated date ${DateFormat('yyyy-MM-dd HH:mm:ss').format(lastUpdatedTime)}', style: bodyCommon(commonGrey5)),
-              if (!hideUpdateText) const SizedBox(width: 8),
+                Text('Updated date ${DateFormat('yyyy-MM-dd HH:mm:ss').format(lastUpdatedTime)}', style: bodyCommon(commonGrey6)),
+              if (!hideUpdateText) const SizedBox(width: 12),
               InkWell(
                 onTap: onReload,
                 child: Container(
-                  height: 40,
-                  width: 40,
+                  height: 36,
+                  width: 36,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: commonGrey2, borderRadius: BorderRadius.circular(8)),
-                  child: SvgPicture.asset("assets/images/ic_24_reload.svg"),
+                  decoration: BoxDecoration(color: commonWhite, borderRadius: BorderRadius.circular(8)),
+                  child: SvgPicture.asset(
+                    "assets/images/ic_24_reload.svg",
+                    colorFilter: const ColorFilter.mode(commonBlack, BlendMode.srcIn),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
         ],
       );
     },

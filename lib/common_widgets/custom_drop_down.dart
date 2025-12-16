@@ -55,7 +55,7 @@ class _CustomDropdownState extends State<CustomDropdown> {
       child: Container(
         key: _dropdownKey,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-        decoration: BoxDecoration(border: Border.all(color: commonGrey5), borderRadius: BorderRadius.circular(4)),
+        decoration: BoxDecoration(border: Border.all(color: commonGrey2), borderRadius: BorderRadius.circular(8),color: commonWhite),
         child: Row(
           children: [
             Expanded(
