@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:moni_pod_web/features/home/presentation/base_screen.dart';
 import 'package:data_table_2/data_table_2.dart';
+import 'dart:html' if (dart.library.io) 'package:universal_html/html.dart' as html;
 
 import '../../../common_widgets/input_box.dart';
 import '../../../config/style.dart';
@@ -56,86 +57,86 @@ class _MoniPodAssetsScreenState extends ConsumerState<MoniPodAssetsScreen> {
   }
 
   // 💡 3. Import CSV 기능 구현 (File Picker 사용)
-  void _handleImportCsv() async {
-    // 웹 환경에서 File Picker 사용
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['csv'],
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        final bytes = file.bytes;
-
-        if (bytes != null) {
-          // CSV 내용을 String으로 변환 (웹에서는 bytes로 접근)
-          String csvContent = String.fromCharCodes(bytes);
-
-          // TODO: 실제로는 여기서 csvContent를 파싱하여 _assets 리스트를 업데이트해야 합니다.
-          print('CSV File picked: ${file.name}');
-          print('Content preview: ${csvContent.substring(0, csvContent.length > 200 ? 200 : csvContent.length)}');
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('"${file.name}" 파일이 성공적으로 업로드되었으며, 데이터 파싱을 준비합니다.')));
-          }
-        }
-      } else {
-        // User canceled the picker
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV 파일 선택이 취소되었습니다.')));
-        }
-      }
-    } catch (e) {
-      print('Error picking file: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('파일 선택 중 오류가 발생했습니다: $e')));
-      }
-    }
-  }
+  // void _handleImportCsv() async {
+  //   // 웹 환경에서 File Picker 사용
+  //   try {
+  //     FilePickerResult? result = await FilePicker.platform.pickFiles(
+  //       type: FileType.custom,
+  //       allowedExtensions: ['csv'],
+  //       allowMultiple: false,
+  //     );
   //
-  // // 💡 4. Export CSV 기능 구현 (dart:html 사용)
-  // void _handleExportCsv() {
-  //   // CSV 헤더 정의 (Asset.toCsvString()의 순서와 일치)
-  //   const headers = 'MAC ADDRESS,FIRMWARE VERSION,SIGNAL (RSSI),PAIRING STATUS,STATUS,REGISTERED BY,DATE,SENSOR TYPE\n';
+  //     if (result != null && result.files.isNotEmpty) {
+  //       final file = result.files.first;
+  //       final bytes = file.bytes;
   //
-  //   // 데이터 행 생성
-  //   final csvData = allGlobalDevicesList.map((device) => device.toCsvString()).join('\n');
-  //   final csvContent = headers + csvData;
+  //       if (bytes != null) {
+  //         // CSV 내용을 String으로 변환 (웹에서는 bytes로 접근)
+  //         String csvContent = String.fromCharCodes(bytes);
   //
-  //   // Flutter Web 환경인지 확인
-  //   if (kIsWeb) {
-  //     try {
-  //       final bytes = Uint8List.fromList(csvContent.codeUnits);
-  //       // dart:html의 Blob 및 AnchorElement 사용
-  //       final blob = html.Blob([bytes]);
-  //       final url = html.Url.createObjectUrlFromBlob(blob);
+  //         // TODO: 실제로는 여기서 csvContent를 파싱하여 _assets 리스트를 업데이트해야 합니다.
+  //         print('CSV File picked: ${file.name}');
+  //         print('Content preview: ${csvContent.substring(0, csvContent.length > 200 ? 200 : csvContent.length)}');
   //
-  //       final anchor =
-  //           html.AnchorElement(href: url)
-  //             ..setAttribute("download", "moni_pod_assets_${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}.csv")
-  //             ..click();
-  //
-  //       html.Url.revokeObjectUrl(url); // 메모리 해제
-  //
-  //       if (mounted) {
-  //         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV 파일 다운로드를 시작합니다.')));
+  //         if (mounted) {
+  //           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('"${file.name}" 파일이 성공적으로 업로드되었으며, 데이터 파싱을 준비합니다.')));
+  //         }
   //       }
-  //     } catch (e) {
-  //       print("CSV Export failed: $e");
+  //     } else {
+  //       // User canceled the picker
   //       if (mounted) {
-  //         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('다운로드 중 오류가 발생했습니다.')));
+  //         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV 파일 선택이 취소되었습니다.')));
   //       }
   //     }
-  //   } else {
-  //     // Web이 아닌 환경 (콘솔 출력으로 대체)
-  //     print("CSV Export: Web 환경에서만 다운로드가 지원됩니다.");
+  //   } catch (e) {
+  //     print('Error picking file: $e');
   //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV 다운로드는 웹 환경에서만 지원됩니다.')));
+  //       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('파일 선택 중 오류가 발생했습니다: $e')));
   //     }
   //   }
   // }
+
+  // 💡 4. Export CSV 기능 구현 (dart:html 사용)
+  void _handleExportCsv() {
+    // CSV 헤더 정의 (Asset.toCsvString()의 순서와 일치)
+    const headers = 'MAC ADDRESS,FIRMWARE VERSION,SIGNAL (RSSI),PAIRING STATUS,STATUS,REGISTERED BY,DATE,SENSOR TYPE\n';
+
+    // 데이터 행 생성
+    final csvData = allGlobalDevicesList.map((device) => device.toCsvString()).join('\n');
+    final csvContent = headers + csvData;
+
+    // Flutter Web 환경인지 확인
+    if (kIsWeb) {
+      try {
+        final bytes = Uint8List.fromList(csvContent.codeUnits);
+        // dart:html의 Blob 및 AnchorElement 사용
+        final blob = html.Blob([bytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+
+        final anchor =
+            html.AnchorElement(href: url)
+              ..setAttribute("download", "moni_pod_assets_${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}.csv")
+              ..click();
+
+        html.Url.revokeObjectUrl(url); // 메모리 해제
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV 파일 다운로드를 시작합니다.')));
+        }
+      } catch (e) {
+        print("CSV Export failed: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('다운로드 중 오류가 발생했습니다.')));
+        }
+      }
+    } else {
+      // Web이 아닌 환경 (콘솔 출력으로 대체)
+      print("CSV Export: Web 환경에서만 다운로드가 지원됩니다.");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV 다운로드는 웹 환경에서만 지원됩니다.')));
+      }
+    }
+  }
 
   // 💡 2. 상단 헤더 위젯 (반응형 구현은 기존 코드를 유지합니다.)
   Widget _buildHeader() {
@@ -154,7 +155,7 @@ class _MoniPodAssetsScreenState extends ConsumerState<MoniPodAssetsScreen> {
               // const SizedBox(width: 8),
               // _buildActionButton('Upload (CSV)', 'assets/images/ic_24_upload.svg', commonWhite, commonGrey6, _handleImportCsv),
               // const SizedBox(width: 8),
-              // _buildActionButton('Export CSV', 'assets/images/ic_24_download.svg', commonWhite, commonGrey6, _handleExportCsv),
+              _buildActionButton('Export CSV', 'assets/images/ic_24_download.svg', commonWhite, commonGrey6, _handleExportCsv),
             ],
           );
 

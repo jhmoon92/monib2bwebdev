@@ -208,11 +208,13 @@ class _ManagerCardState extends State<_ManagerCard> {
           ),
           const Divider(height: 24, thickness: 1, color: commonGrey2),
           _isEditing
-              ? MangerDropDown(
-                onChanged: (String value) {
-                  setState(() {
-                  });
-                },
+              ? Center(
+                child: MangerDropDown(
+                  onChanged: (String value) {
+                    setState(() {
+                    });
+                  },
+                ),
               )
               : Column(
                 children: [
