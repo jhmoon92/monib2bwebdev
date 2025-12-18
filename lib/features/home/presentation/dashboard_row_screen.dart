@@ -42,8 +42,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Status', style: titleMedium(commonBlack)),
-        const SizedBox(height: 16),
         InkWell(
           onTap: () {
             showCriticalUnitsDialog(context, true);

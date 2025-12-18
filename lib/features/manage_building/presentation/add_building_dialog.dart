@@ -346,18 +346,12 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
                         height: 40,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(color: themeYellow, borderRadius: BorderRadius.circular(4)),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Add Building', style: bodyTitle(commonWhite)),
-                          ],
-                        ),
+                        child: Text('Add Building', style: bodyTitle(commonWhite)),
                       ),
                     ),
               ],
             ),
           ),
-        ],
         ],
       ),
     );
