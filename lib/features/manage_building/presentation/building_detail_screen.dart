@@ -275,7 +275,7 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                       child: Text('Search', style: bodyTitle(commonWhite)),
                     ),
                   );
-                  final Widget addButtonWidget = addButton('Add Building', () {
+                  final Widget addButtonWidget = addButton('Add Unit', () {
                     showAddUnitDialog(context);
                   });
                   if (screenWidth > threshold) {

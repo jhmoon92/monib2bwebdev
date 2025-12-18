@@ -291,7 +291,11 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
                         width: 256,
                         height: 40,
                         alignment: Alignment.center,
-                        decoration: BoxDecoration(color: commonWhite, borderRadius: BorderRadius.circular(4)),
+                        decoration: BoxDecoration(
+                          color: commonWhite,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: commonGrey2, width: 1),
+                        ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -346,8 +350,6 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text('Add Building', style: bodyTitle(commonWhite)),
-                            const SizedBox(width: 4),
-                            Icon(Icons.arrow_right_alt, size: 24, color: commonWhite),
                           ],
                         ),
                       ),
@@ -355,6 +357,7 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
               ],
             ),
           ),
+        ],
         ],
       ),
     );
@@ -868,29 +871,31 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
                             const SizedBox(height: 24),
                             // 미리보기 그리드
                             // 2. 미리보기 그리드 영역 (스크롤 가능하게 수정) ✅
-                            Expanded( // Column 내부에서 남은 300px의 공간을 차지하게 함
-                              child: _unitSet.isNotEmpty
-                                  ? Scrollbar( // 웹/데스크탑 사용성을 위해 스크롤바 추가
-                                thumbVisibility: true,
-                                child: SingleChildScrollView(
-                                  child: Wrap(
-                                    spacing: 8.0,
-                                    runSpacing: 8.0,
-                                    children: _unitSet.map((unit) {
-                                      if (unit.contains('유효한')) {
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-                                          child: Text(unit, style: TextStyle(color: commonBlack)),
-                                        );
-                                      }
-                                      return _UnitChip(unitNumber: unit, onDelete: _deleteUnit);
-                                    }).toList(),
-                                  ),
-                                ),
-                              )
-                                  : Center(
-                                child: Text('No units generated yet.', style: bodyCommon(commonGrey5)),
-                              ),
+                            Expanded(
+                              // Column 내부에서 남은 300px의 공간을 차지하게 함
+                              child:
+                                  _unitSet.isNotEmpty
+                                      ? Scrollbar(
+                                        // 웹/데스크탑 사용성을 위해 스크롤바 추가
+                                        thumbVisibility: true,
+                                        child: SingleChildScrollView(
+                                          child: Wrap(
+                                            spacing: 8.0,
+                                            runSpacing: 8.0,
+                                            children:
+                                                _unitSet.map((unit) {
+                                                  if (unit.contains('유효한')) {
+                                                    return Padding(
+                                                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+                                                      child: Text(unit, style: TextStyle(color: commonBlack)),
+                                                    );
+                                                  }
+                                                  return _UnitChip(unitNumber: unit, onDelete: _deleteUnit);
+                                                }).toList(),
+                                          ),
+                                        ),
+                                      )
+                                      : Center(child: Text('No units generated yet.', style: bodyCommon(commonGrey5))),
                             ),
                           ],
                         ),
