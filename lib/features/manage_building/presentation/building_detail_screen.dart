@@ -251,6 +251,9 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                       validator: (value) {
                         return null;
                       },
+                      onChanged: (val) {
+                        setState(() {});
+                      },
                     ),
                     // child: InputBoxFilter(
                     //   controller: controller,
@@ -444,10 +447,20 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
   }
 
   Widget _buildUnitGrid() {
+    // ✅ 1. 검색어(controller.text)를 기준으로 필터링된 리스트 생성
+    final filteredUnits = widget.building.unitList.where((unit) {
+      final searchTerm = controller.text.toLowerCase();
+      // 유닛 번호(unit.number)에 검색어가 포함되어 있는지 확인 (대소문자 구분 없음)
+      return unit.number.toLowerCase().contains(searchTerm);
+    }).toList();
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24),
       child: ScrollbarTheme(
-        data: ScrollbarThemeData(thumbColor: WidgetStateProperty.all(commonGrey3), trackColor: WidgetStateProperty.all(commonGrey3)),
+        data: ScrollbarThemeData(
+            thumbColor: WidgetStateProperty.all(commonGrey3),
+            trackColor: WidgetStateProperty.all(commonGrey3)
+        ),
         child: Scrollbar(
           controller: scrollController,
           interactive: true,
@@ -462,32 +475,32 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                 final int crossAxisCount = ((constraints.maxWidth + spacing) / (minItemWidth + spacing)).floor();
                 final int actualCrossAxisCount = crossAxisCount.clamp(1, 10);
                 final double itemWidth = (constraints.maxWidth - (actualCrossAxisCount - 1) * spacing) / actualCrossAxisCount;
+
                 return Padding(
                   padding: EdgeInsets.only(bottom: 20),
                   child: Wrap(
                     spacing: spacing,
                     runSpacing: spacing,
-                    children:
-                        widget.building.unitList.asMap().entries.map((entry) {
-                          final int index = entry.key;
-                          final unit = entry.value;
-                          return SizedBox(
-                            height: 176,
-                            width: itemWidth,
-                            child: UnitTile(
-                              unit: unit,
-                              onTap: () {
-                                context.pushNamed(
-                                  AppRoute.unitDetail.name,
-                                  pathParameters: {
-                                    'buildingId': widget.building.id.toString(), // 상위 Building ID
-                                    'unitId': unit.id.toString(), // Unit ID
-                                  },
-                                );
+                    // ✅ 2. 전체 리스트 대신 필터링된 filteredUnits를 사용합니다.
+                    children: filteredUnits.asMap().entries.map((entry) {
+                      final unit = entry.value;
+                      return SizedBox(
+                        height: 176,
+                        width: itemWidth,
+                        child: UnitTile(
+                          unit: unit,
+                          onTap: () {
+                            context.pushNamed(
+                              AppRoute.unitDetail.name,
+                              pathParameters: {
+                                'buildingId': widget.building.id.toString(),
+                                'unitId': unit.id.toString(),
                               },
-                            ),
-                          );
-                        }).toList(),
+                            );
+                          },
+                        ),
+                      );
+                    }).toList(),
                   ),
                 );
               },
@@ -496,5 +509,4 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
         ),
       ),
     );
-  }
-}
+  }}

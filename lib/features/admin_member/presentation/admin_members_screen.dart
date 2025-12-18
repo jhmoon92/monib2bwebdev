@@ -8,7 +8,7 @@ import '../../../config/style.dart';
 import '../../home/presentation/base_screen.dart';
 import '../../manage_building/domain/unit_model.dart';
 import 'invite_member_dialog.dart';
-import 'memeber_detail_dialog.dart';
+import 'edit_member_dialog.dart';
 
 class MemberCardData {
   final String name;
@@ -375,7 +375,7 @@ class _MemberCardState extends ConsumerState<MemberCard> {
                           setState(() {
                             _isOverlayVisible = false;
                           });
-                          showMemberDetailDialog(context, widget.data);
+                          showEditMemberDialog(context, widget.data);
                         },
                         child: Row(
                           children: [

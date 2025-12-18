@@ -56,6 +56,9 @@ class _ManageBuildingScreenState extends ConsumerState<ManageBuildingScreen> {
                   validator: (value) {
                     return null;
                   },
+                  onChanged: (val) {
+                    setState(() {});
+                  },
                 ),
                 // child: InputBoxFilter(
                 //   controller: controller,
@@ -134,6 +137,12 @@ class _ManageBuildingScreenState extends ConsumerState<ManageBuildingScreen> {
                 final double totalSpacingWidth = spacing * (crossAxisCount - 1);
                 final double itemWidth = (screenWidth - totalSpacingWidth) / crossAxisCount;
 
+                final filteredBuildings =
+                    buildings.where((building) {
+                      final searchTerm = controller.text.toLowerCase();
+                      return building.name.toLowerCase().contains(searchTerm);
+                    }).toList();
+
                 return SingleChildScrollView(
                   child: Padding(
                     padding: EdgeInsets.only(bottom: 20),
@@ -141,7 +150,7 @@ class _ManageBuildingScreenState extends ConsumerState<ManageBuildingScreen> {
                       spacing: spacing,
                       runSpacing: spacing,
                       children:
-                          buildings.map((data) {
+                          filteredBuildings.map((data) {
                             return InkWell(
                               onTap: () {
                                 context.pushNamed(AppRoute.buildingDetail.name, pathParameters: {'buildingId': data.id});

@@ -100,33 +100,25 @@ class _MoniPodAssetsScreenState extends ConsumerState<MoniPodAssetsScreen> {
   // 💡 4. Export CSV 기능 구현 (dart:html 사용)
   void _handleExportCsv() {
     // 1. 헤더 정의 (표의 컬럼 순서와 일치시킴)
-    final List<String> headers = [
-      'SERIAL NUMBER',
-      'BUILDING',
-      'UNIT',
-      'RESIDENT',
-      'FIRMWARE',
-      'STATUS',
-      'INSTALLER',
-      'REG.DATE'
-    ];
+    final List<String> headers = ['SERIAL NUMBER', 'BUILDING', 'UNIT', 'RESIDENT', 'FIRMWARE', 'STATUS', 'INSTALLER', 'REG.DATE'];
 
     // 2. 데이터 행 생성 (표에 표시되는 데이터 로직과 동일하게 구성)
-    final rows = allGlobalDevicesList.map((device) {
-      final List<String> row = [
-        device.serialNumber,
-        device.buildingName,
-        device.unitNumber,
-        device.residentName,
-        'v1.2.0', // 표에서 하드코딩된 펌웨어 버전 반영
-        device.status == 'ONLINE' ? 'Online' : 'Offline',
-        device.installer,
-        DateFormat('yyyy.MM.dd. HH:mm').format(device.installationDate),
-      ];
+    final rows =
+        allGlobalDevicesList.map((device) {
+          final List<String> row = [
+            device.serialNumber,
+            device.buildingName,
+            device.unitNumber,
+            device.residentName,
+            'v1.2.0', // 표에서 하드코딩된 펌웨어 버전 반영
+            device.status == 'ONLINE' ? 'Online' : 'Offline',
+            device.installer,
+            DateFormat('yyyy.MM.dd. HH:mm').format(device.installationDate),
+          ];
 
-      // 데이터 내부에 쉼표(,)가 있을 경우 CSV 형식이 깨지므로 큰따옴표로 감싸줌
-      return row.map((field) => '"${field.toString().replaceAll('"', '""')}"').join(',');
-    }).toList();
+          // 데이터 내부에 쉼표(,)가 있을 경우 CSV 형식이 깨지므로 큰따옴표로 감싸줌
+          return row.map((field) => '"${field.toString().replaceAll('"', '""')}"').join(',');
+        }).toList();
 
     // 3. 전체 콘텐츠 병합 (엑셀 한글 깨짐 방지를 위해 \uFEFF 추가)
     final csvContent = '\uFEFF${headers.join(',')}\n${rows.join('\n')}';
@@ -138,9 +130,10 @@ class _MoniPodAssetsScreenState extends ConsumerState<MoniPodAssetsScreen> {
         final blob = html.Blob([bytes], 'text/csv;charset=utf-8');
         final url = html.Url.createObjectUrlFromBlob(blob);
 
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute("download", "moni_pod_assets_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv")
-          ..click();
+        final anchor =
+            html.AnchorElement(href: url)
+              ..setAttribute("download", "moni_pod_assets_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv")
+              ..click();
 
         html.Url.revokeObjectUrl(url);
 
@@ -158,6 +151,7 @@ class _MoniPodAssetsScreenState extends ConsumerState<MoniPodAssetsScreen> {
       }
     }
   }
+
   // 💡 2. 상단 헤더 위젯 (반응형 구현은 기존 코드를 유지합니다.)
   Widget _buildHeader() {
     return Padding(
@@ -273,10 +267,8 @@ class _MoniPodAssetsScreenState extends ConsumerState<MoniPodAssetsScreen> {
           fixedTopRows: 1,
           minWidth: minTableWidth,
           headingRowColor: WidgetStateProperty.all<Color>(commonWhite),
-          border: TableBorder(
-            horizontalInside: BorderSide(color: commonGrey2, width: 1.0),
-            bottom: BorderSide(color: commonGrey5, width: 1.0),
-          ),
+          border: TableBorder(horizontalInside: BorderSide(color: commonGrey2, width: 1.0)),
+          headingRowDecoration: BoxDecoration(border: Border(bottom: BorderSide(color: commonGrey5, width: 1.0))),
           columnSpacing: 30, // 열 간격 조정
           horizontalMargin: 0,
           headingRowHeight: 48,

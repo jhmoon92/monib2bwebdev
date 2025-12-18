@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/svg.dart';
 import '../../../common_widgets/button.dart';
 import '../../../common_widgets/custom_dialog.dart';
 import '../../../common_widgets/input_box.dart';
@@ -36,6 +37,7 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
   final TextEditingController _unitNumberController = TextEditingController();
   final TextEditingController _residentNameController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
+  final TextEditingController _assignInstallerController = TextEditingController();
   final TextEditingController _deviceNumberController = TextEditingController();
 
   final ScrollController _scrollController = ScrollController();
@@ -96,23 +98,11 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 24),
-                  inputText(
-                    'Unit Number',
-                    '# e.g. 101',
-                    _unitNumberController,
-                    const Icon(Icons.tag_sharp, color: Colors.grey),
-                    isRequired: true,
-                  ),
+                  inputText('Unit Number', _unitNumberController, isRequired: true),
                   const SizedBox(height: 28),
-
-                  inputText('Resident Name', 'Unassigned', _residentNameController, const Icon(Icons.person_outline, color: Colors.grey)),
+                  inputText('Resident Name', _residentNameController),
                   const SizedBox(height: 28),
-                  inputText(
-                    'Phone Number',
-                    'e.g. 010-1234-5678',
-                    _phoneNumberController,
-                    const Icon(Icons.phone_outlined, color: Colors.grey),
-                  ),
+                  inputText('Phone Number', _phoneNumberController),
                   const SizedBox(height: 28),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,8 +141,11 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
               ),
             ),
           ),
-          Container(padding: EdgeInsets.only(right: 24, bottom: 24), alignment: Alignment.bottomRight,child: addButton('Add Unit', () {},
-              imageWidget: Container())),
+          Container(
+            padding: EdgeInsets.only(right: 24, bottom: 24),
+            alignment: Alignment.bottomRight,
+            child: addButton('Add Unit', () {}, imageWidget: Container()),
+          ),
         ],
       ),
     );
@@ -214,25 +207,23 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
   }
 
   Widget _buildInstallerSearch() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(color: commonWhite, border: Border.all(color: commonGrey4), borderRadius: BorderRadius.circular(4)),
-      child: TextField(
-        decoration: InputDecoration(
-          icon: const Icon(Icons.search, color: commonGrey5, size: 20),
-          hintText: 'Search installers...',
-          hintStyle: bodyCommon(commonGrey5),
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-        style: bodyCommon(commonBlack),
-        onChanged: (value) {
-          setState(() {
-            _searchQuery = value;
-          });
-        },
-      ),
+    return InputBox(
+      controller: _assignInstallerController,
+      label: 'Search Member',
+      maxLength: 64,
+      isErrorText: true,
+      onSaved: (val) {},
+      textStyle: bodyCommon(commonBlack),
+      textType: 'normal',
+      validator: (value) {
+        return null;
+      },
+      onChanged: (value) {
+        setState(() {
+          _searchQuery = value;
+        });
+      },
+      icon: Padding(padding: const EdgeInsets.only(left: 8), child: SvgPicture.asset('assets/images/ic_16_search.svg')),
     );
   }
 
@@ -294,7 +285,7 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
     );
   }
 
-  Widget inputText(String title, String hint, TextEditingController controller, Widget icon, {bool isRequired = false}) {
+  Widget inputText(String title, TextEditingController controller, {bool isRequired = false}) {
     return Row(
       children: [
         Expanded(
@@ -314,10 +305,22 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
             children: [
               InputBox(
                 controller: controller,
-                label: hint,
+                label: title,
                 maxLength: 32,
                 isErrorText: true,
-                icon: icon,
+                icon: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: SvgPicture.asset(
+                    title == 'Unit Number'
+                        ? 'assets/images/ic_24_room_1.svg'
+                        : title == 'Resident Name'
+                        ? 'assets/images/ic_24_person.svg'
+                        : 'assets/images/ic_24_call.svg',
+                    width: 16,
+                    fit: BoxFit.fitWidth,
+                    colorFilter: ColorFilter.mode(commonGrey5, BlendMode.srcIn),
+                  ),
+                ),
                 onSaved: (val) {},
                 textStyle: bodyCommon(commonBlack),
                 textType: 'normal',

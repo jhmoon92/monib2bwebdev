@@ -44,6 +44,7 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
   final TextEditingController _unitsPerFloorController = TextEditingController();
   final TextEditingController _customUnitController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ScrollController _previewScrollController = ScrollController();
   List<String> _addressSuggestions = [];
   Timer? _debounce;
   bool _isSearchingAddress = false;
@@ -252,7 +253,15 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
                             'Building Name',
                             'e.g.Sunrise Senior Care',
                             _buildingNameController,
-                            const Icon(Icons.person_outline, color: Colors.grey),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: SvgPicture.asset(
+                                'assets/images/ic_24_office.svg',
+                                width: 16,
+                                fit: BoxFit.fitWidth,
+                                colorFilter: ColorFilter.mode(commonGrey5, BlendMode.srcIn),
+                              ),
+                            ),
                             isRequired: true,
                           ),
                           const SizedBox(height: 28),
@@ -589,21 +598,33 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
 
                           return SizedBox(
                             height: 40,
-                            child: CheckboxListTile(
-                              title: Text(manager.name, style: bodyCommon(isDisabled ? commonGrey5 : commonBlack)),
-                              value: isChecked,
-                              onChanged:
-                                  isDisabled
-                                      ? null
-                                      : (bool? newValue) {
-                                        setState(() {
-                                          _selectedManagers[manager.id] = newValue ?? false;
-                                        });
-                                      },
-                              controlAffinity: ListTileControlAffinity.leading,
-                              checkColor: Colors.white,
-                              activeColor: themeYellow,
-                              tileColor: isDisabled ? commonGrey2 : Colors.white,
+                            child: Theme(
+                              data: Theme.of(context).copyWith(
+                                checkboxTheme: CheckboxThemeData(
+                                  fillColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                                    // 비활성화(disabled) 상태일 때 원하는 진한 회색을 반환
+                                    if (states.contains(WidgetState.disabled)) {
+                                      return commonGrey5; // ✅ 여기서 회색의 농도를 조절하세요 (예: commonGrey6)
+                                    }
+                                    return null; // 그 외 상태는 기본 테마(activeColor 등)를 따름
+                                  }),
+                                ),
+                              ),
+                              child: CheckboxListTile(
+                                title: Text(manager.name, style: bodyCommon(isDisabled ? commonGrey5 : commonBlack)),
+                                value: isDisabled ? true : isChecked, // 비활성화 항목은 체크 고정
+                                onChanged: isDisabled ? null : (bool? newValue) {
+                                  setState(() {
+                                    _selectedManagers[manager.id] = newValue ?? false;
+                                  });
+                                },
+                                visualDensity: const VisualDensity(horizontal: 0, vertical: -4), // ✅ 수직 밀도를 최소로 줄임
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0), // ✅ 세로 패딩 제거
+                                controlAffinity: ListTileControlAffinity.leading,
+                                checkColor: Colors.white,
+                                activeColor: themeYellow,
+                                tileColor: isDisabled ? commonGrey2 : Colors.white,
+                              ),
                             ),
                           );
                         },
@@ -757,122 +778,125 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
   }
 
   Widget step2Screen() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: EdgeInsets.only(bottom: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
-            Text('Unit Generator', style: bodyCommon(commonGrey5)),
-            const SizedBox(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 24, child: Text('Configuration', style: titleCommon(commonBlack))),
-                Expanded(
-                  flex: 44,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          _buildTextField(label: 'Start Floor', controller: _startFloorController),
-                          const SizedBox(width: 16),
-                          _buildTextField(label: 'End Floor', controller: _endFloorController),
-                          const SizedBox(width: 16),
-                          _buildTextField(label: 'Units per Floor', controller: _unitsPerFloorController),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: InkWell(
-                          onTap: _generateUnits,
-                          child: Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(4),
-                              color:
-                                  _startFloorController.text.isNotEmpty &&
-                                          _endFloorController.text.isNotEmpty &&
-                                          _unitsPerFloorController.text.isNotEmpty
-                                      ? themeYellow
-                                      : commonGrey3,
-                            ),
-                            child: Text('Generate Preview', style: bodyTitle(commonWhite)),
+    return Padding(
+      padding: EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          Text('Unit Generator', style: bodyCommon(commonGrey5)),
+          const SizedBox(height: 24),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 24, child: Text('Configuration', style: titleCommon(commonBlack))),
+              Expanded(
+                flex: 44,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _buildTextField(label: 'Start Floor', controller: _startFloorController),
+                        const SizedBox(width: 16),
+                        _buildTextField(label: 'End Floor', controller: _endFloorController),
+                        const SizedBox(width: 16),
+                        _buildTextField(label: 'Units per Floor', controller: _unitsPerFloorController),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: InkWell(
+                        onTap: _generateUnits,
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            color:
+                                _startFloorController.text.isNotEmpty &&
+                                        _endFloorController.text.isNotEmpty &&
+                                        _unitsPerFloorController.text.isNotEmpty
+                                    ? themeYellow
+                                    : commonGrey3,
                           ),
+                          child: Text('Generate Preview', style: bodyTitle(commonWhite)),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 24, child: Text('Preview (${_unitSet.length})', style: titleCommon(commonBlack))),
-                Expanded(
-                  flex: 44,
-                  child: Column(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        height: 380,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(color: commonGrey1, borderRadius: BorderRadius.circular(8)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: InputBox(
-                                    controller: _customUnitController,
-                                    label: 'Add custom...',
-                                    maxLength: 4,
-                                    isErrorText: true,
-                                    icon: Icon(Icons.layers_outlined, size: 22, color: commonGrey5),
-                                    onSaved: (val) {},
-                                    textStyle: bodyCommon(commonBlack),
-                                    textType: 'number',
-                                    validator: (value) {
-                                      return null;
-                                    },
-                                  ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 24, child: Text('Preview (${_unitSet.length})', style: titleCommon(commonBlack))),
+              Expanded(
+                flex: 44,
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: 360,
+                      padding: const EdgeInsets.only(left: 16, top: 16, bottom: 16, right: 4),
+                      decoration: BoxDecoration(color: commonGrey1, borderRadius: BorderRadius.circular(8)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InputBox(
+                                  controller: _customUnitController,
+                                  label: 'Add Custom...',
+                                  maxLength: 4,
+                                  isErrorText: true,
+                                  onSaved: (val) {},
+                                  textStyle: bodyCommon(commonBlack),
+                                  textType: 'number',
+                                  validator: (value) {
+                                    return null;
+                                  },
                                 ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  width: 48,
-                                  height: 48,
-                                  child: ElevatedButton(
-                                    onPressed: _addCustomUnit,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: themeYellow,
-                                      padding: EdgeInsets.zero,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                    ),
-                                    child: const Icon(Icons.add, size: 24, color: commonWhite),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: ElevatedButton(
+                                  onPressed: _addCustomUnit,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: themeYellow,
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                                   ),
+                                  child: const Icon(Icons.add, size: 24, color: commonWhite),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            // 미리보기 그리드
-                            // 2. 미리보기 그리드 영역 (스크롤 가능하게 수정) ✅
-                            Expanded(
-                              // Column 내부에서 남은 300px의 공간을 차지하게 함
-                              child:
-                                  _unitSet.isNotEmpty
-                                      ? Scrollbar(
-                                        // 웹/데스크탑 사용성을 위해 스크롤바 추가
+                              ),
+                              const SizedBox(width: 16),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child:
+                                _unitSet.isNotEmpty
+                                    ? ScrollbarTheme(
+                                      data: ScrollbarThemeData(
+                                        thumbColor: WidgetStateProperty.all(commonGrey4),
+                                        trackColor: WidgetStateProperty.all(commonGrey2),
+                                      ),
+                                      child: Scrollbar(
+                                        controller: _previewScrollController,
+                                        interactive: true,
                                         thumbVisibility: true,
+                                        thickness: 8.0,
                                         child: SingleChildScrollView(
+                                          controller: _previewScrollController,
                                           child: Wrap(
                                             spacing: 8.0,
                                             runSpacing: 8.0,
@@ -888,19 +912,19 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
                                                 }).toList(),
                                           ),
                                         ),
-                                      )
-                                      : Center(child: Text('No units generated yet.', style: bodyCommon(commonGrey5))),
-                            ),
-                          ],
-                        ),
+                                      ),
+                                    )
+                                    : Center(child: Text('No units generated yet.', style: bodyCommon(commonGrey5))),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/svg.dart';
 import '../../../common_widgets/button.dart';
 import '../../../common_widgets/custom_dialog.dart';
 import '../../../common_widgets/input_box.dart';
@@ -63,7 +64,7 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
                 const SizedBox(height: 24),
                 _buildInputField(context, 'Name', 'Tanaka', Icons.person_outline, nameController),
                 const SizedBox(height: 28),
-                _buildInputField(context, 'Email', 'tanaka@example.com', Icons.email_outlined, emailController),
+                _buildInputField(context, 'E-mail', 'tanaka@example.com', Icons.email_outlined, emailController),
                 const SizedBox(height: 28),
                 Row(
                   children: [
@@ -190,6 +191,17 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
             validator: (value) {
               return null;
             },
+            icon: Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: SvgPicture.asset(
+                label == 'Name'
+                    ? 'assets/images/ic_24_person.svg'
+                    : 'assets/images/ic_24_mail.svg',
+                width: 16,
+                fit: BoxFit.fitWidth,
+                colorFilter: ColorFilter.mode(commonGrey5, BlendMode.srcIn),
+              ),
+            ),
           ),
         ),
       ],
