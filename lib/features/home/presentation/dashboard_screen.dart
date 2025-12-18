@@ -48,9 +48,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             height: 184,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: commonWhite,
+                  color: successGreenBg1,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: successGreen, width: 1),
+                  border: Border.all(color: successGreen, width: 2),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(24),
