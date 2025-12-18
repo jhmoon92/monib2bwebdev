@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -97,46 +99,65 @@ class _MoniPodAssetsScreenState extends ConsumerState<MoniPodAssetsScreen> {
 
   // 💡 4. Export CSV 기능 구현 (dart:html 사용)
   void _handleExportCsv() {
-    // CSV 헤더 정의 (Asset.toCsvString()의 순서와 일치)
-    const headers = 'MAC ADDRESS,FIRMWARE VERSION,SIGNAL (RSSI),PAIRING STATUS,STATUS,REGISTERED BY,DATE,SENSOR TYPE\n';
+    // 1. 헤더 정의 (표의 컬럼 순서와 일치시킴)
+    final List<String> headers = [
+      'SERIAL NUMBER',
+      'BUILDING',
+      'UNIT',
+      'RESIDENT',
+      'FIRMWARE',
+      'STATUS',
+      'INSTALLER',
+      'REG.DATE'
+    ];
 
-    // 데이터 행 생성
-    final csvData = allGlobalDevicesList.map((device) => device.toCsvString()).join('\n');
-    final csvContent = headers + csvData;
+    // 2. 데이터 행 생성 (표에 표시되는 데이터 로직과 동일하게 구성)
+    final rows = allGlobalDevicesList.map((device) {
+      final List<String> row = [
+        device.serialNumber,
+        device.buildingName,
+        device.unitNumber,
+        device.residentName,
+        'v1.2.0', // 표에서 하드코딩된 펌웨어 버전 반영
+        device.status == 'ONLINE' ? 'Online' : 'Offline',
+        device.installer,
+        DateFormat('yyyy.MM.dd. HH:mm').format(device.installationDate),
+      ];
 
-    // Flutter Web 환경인지 확인
+      // 데이터 내부에 쉼표(,)가 있을 경우 CSV 형식이 깨지므로 큰따옴표로 감싸줌
+      return row.map((field) => '"${field.toString().replaceAll('"', '""')}"').join(',');
+    }).toList();
+
+    // 3. 전체 콘텐츠 병합 (엑셀 한글 깨짐 방지를 위해 \uFEFF 추가)
+    final csvContent = '\uFEFF${headers.join(',')}\n${rows.join('\n')}';
+
+    // 4. 다운로드 로직 (기존 코드 유지)
     if (kIsWeb) {
       try {
-        final bytes = Uint8List.fromList(csvContent.codeUnits);
-        // dart:html의 Blob 및 AnchorElement 사용
-        final blob = html.Blob([bytes]);
+        final bytes = Uint8List.fromList(utf8.encode(csvContent)); // utf8 인코딩 사용
+        final blob = html.Blob([bytes], 'text/csv;charset=utf-8');
         final url = html.Url.createObjectUrlFromBlob(blob);
 
-        final anchor =
-            html.AnchorElement(href: url)
-              ..setAttribute("download", "moni_pod_assets_${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}.csv")
-              ..click();
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute("download", "moni_pod_assets_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv")
+          ..click();
 
-        html.Url.revokeObjectUrl(url); // 메모리 해제
+        html.Url.revokeObjectUrl(url);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV 파일 다운로드를 시작합니다.')));
         }
       } catch (e) {
-        print("CSV Export failed: $e");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('다운로드 중 오류가 발생했습니다.')));
         }
       }
     } else {
-      // Web이 아닌 환경 (콘솔 출력으로 대체)
-      print("CSV Export: Web 환경에서만 다운로드가 지원됩니다.");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV 다운로드는 웹 환경에서만 지원됩니다.')));
       }
     }
   }
-
   // 💡 2. 상단 헤더 위젯 (반응형 구현은 기존 코드를 유지합니다.)
   Widget _buildHeader() {
     return Padding(
@@ -262,7 +283,7 @@ class _MoniPodAssetsScreenState extends ConsumerState<MoniPodAssetsScreen> {
           dataRowHeight: 56, // 행 높이 조정
           columns: [
             DataColumn2(
-              label: Padding(padding: EdgeInsets.only(left: 24), child: Text('MAC ADDRESS', style: bodyTitle(commonBlack))),
+              label: Padding(padding: EdgeInsets.only(left: 24), child: Text('SERIAL NUMBER', style: bodyTitle(commonBlack))),
               size: ColumnSize.M,
             ),
             DataColumn2(
