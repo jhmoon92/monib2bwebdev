@@ -60,7 +60,6 @@ class _EditUnitDialogState extends ConsumerState<EditUnitDialog> with TickerProv
   @override
   void initState() {
     super.initState();
-
     _unitNumberController = TextEditingController(text: widget.unitInfo.name ?? '');
     if (widget.unitInfo.residents!.isNotEmpty) {
       selectedResidentName = widget.unitInfo.residents![0].name ?? '';

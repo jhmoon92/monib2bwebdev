@@ -1,5 +1,5 @@
 {
-  "defaultServerUrl" : "monib2bwebdev.moni-care.com",
+  "defaultServerUrl" : "10.250.22.253:8080",
   "locales" : [ "en_US","ko_KR" ],
   "defaultPlaceName" : "My Home",
   "defaultPlaceType" : "Home",
