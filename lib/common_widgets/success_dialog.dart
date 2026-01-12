@@ -3,14 +3,14 @@ import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moni_pod_web/config/style.dart';
 
-import 'input_box.dart';
-
-void showSuccessDialog(BuildContext context) {
-  showDialog(context: context, builder: (context) => CommonSuccessDialog());
+Future<void> showSuccessDialog(BuildContext context, String contentText) async {
+  showDialog(context: context, builder: (context) => CommonSuccessDialog(contentText: contentText));
 }
 
 class CommonSuccessDialog extends StatefulWidget {
-  const CommonSuccessDialog({super.key});
+  const CommonSuccessDialog({required this.contentText, super.key});
+
+  final String contentText;
 
   @override
   State<CommonSuccessDialog> createState() => _CommonSuccessDialogState();
@@ -37,7 +37,7 @@ class _CommonSuccessDialogState extends State<CommonSuccessDialog> {
               ],
             ),
             const SizedBox(height: 24),
-            Text('The {this name} is deleted.', style: deleteCommon(commonBlack)),
+            Text(widget.contentText, style: deleteCommon(commonBlack)),
             const Spacer(),
             Row(
               children: [

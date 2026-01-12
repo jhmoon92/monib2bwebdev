@@ -363,7 +363,7 @@ class _EditBuildingDialogState extends ConsumerState<EditBuildingDialog> {
                       // 파일이 선택되지 않은 경우
                       : ClipRRect(
                     borderRadius:  BorderRadius.circular(16),
-                    child: Image.asset("assets/images/img_bg_building2.JPG", fit: BoxFit.fitWidth),
+                    child: Image.asset("assets/images/img_default_building.png", fit: BoxFit.fitWidth),
                   ),
                   
                   // Column(

@@ -2,32 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:moni_pod_web/common/provider/sensing/building_resp.dart';
+import 'package:moni_pod_web/common_widgets/async_value_widget.dart';
 import 'package:moni_pod_web/common_widgets/button.dart';
 import 'package:moni_pod_web/common_widgets/status_chip.dart';
+import 'package:moni_pod_web/features/manage_building/application/building_view_model.dart';
 import 'package:moni_pod_web/features/manage_building/presentation/edit_unit_dialog.dart';
-import 'package:moni_pod_web/features/manage_building/presentation/unit_detail_screen.dart';
 
-import '../../../common/util/util.dart';
 import '../../../common_widgets/delete_dialog.dart';
 import '../../../common_widgets/input_box.dart';
 import '../../../config/style.dart';
 
 import '../../../router.dart';
 import '../../home/presentation/base_screen.dart';
+import '../application/buildings_view_model.dart';
 import '../domain/unit_model.dart';
 import 'add_unit_dialog.dart';
 
-class UnitTile extends StatefulWidget {
-  final Unit unit;
+class UnitTile extends ConsumerStatefulWidget {
+  final String buildingId;
+  final UnitServer unit;
   final VoidCallback onTap;
 
-  const UnitTile({super.key, required this.unit, required this.onTap});
+  const UnitTile({super.key, required this.buildingId, required this.unit, required this.onTap});
 
   @override
-  State<UnitTile> createState() => _UnitTileState();
+  ConsumerState<UnitTile> createState() => _UnitTileState();
 }
 
-class _UnitTileState extends State<UnitTile> with SingleTickerProviderStateMixin {
+class _UnitTileState extends ConsumerState<UnitTile> with SingleTickerProviderStateMixin {
   bool _isOverlayVisible = false;
   TextEditingController controller = TextEditingController();
   @override
@@ -53,19 +56,28 @@ class _UnitTileState extends State<UnitTile> with SingleTickerProviderStateMixin
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.only(topLeft: Radius.circular(8.0), topRight: Radius.circular(8.0)),
                 color:
-                    widget.unit.status == 'critical'
+                    widget.unit.alert == 1
                         ? warningRedBg2
-                        : widget.unit.status == 'warning'
+                        : widget.unit.alert == 2
                         ? cautionYellowBg2
-                        : widget.unit.status == 'offline'
+                        : widget.unit.alert == 3
                         ? commonGrey3
                         : successGreenBg2,
               ),
 
               child: Row(
                 children: [
-                  Expanded(child: Text(widget.unit.number, style: headLineSmall(commonBlack), overflow: TextOverflow.ellipsis)),
-                  StatusChip(status: widget.unit.status),
+                  Expanded(child: Text(widget.unit.name!, style: headLineSmall(commonBlack), overflow: TextOverflow.ellipsis)),
+                  StatusChip(
+                    status:
+                        widget.unit.alert == 1
+                            ? 'critical'
+                            : widget.unit.alert == 2
+                            ? 'warning'
+                            : widget.unit.alert == 3
+                            ? 'offline'
+                            : 'normal',
+                  ),
                   const SizedBox(width: 16),
                   InkWell(
                     onTap: () {
@@ -93,7 +105,7 @@ class _UnitTileState extends State<UnitTile> with SingleTickerProviderStateMixin
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          widget.unit.resident.name,
+                          widget.unit.residents == null ? '-' : (widget.unit.residents ?? []).map((m) => m.name ?? '이름 없음').join(', '),
                           style: bodyCommon(commonBlack),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
@@ -110,7 +122,8 @@ class _UnitTileState extends State<UnitTile> with SingleTickerProviderStateMixin
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Last Motion: ${formatMinutesToTimeAgo(widget.unit.lastMotion)}",
+                            "Last Motion: ${widget.unit.lastMotion ?? '-'}",
+                            // "Last Motion: ${widget.unit.lastMotion!}",
                             style: bodyCommon(commonBlack),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
@@ -147,7 +160,7 @@ class _UnitTileState extends State<UnitTile> with SingleTickerProviderStateMixin
                           setState(() {
                             _isOverlayVisible = false;
                           });
-                          showEditUnitDialog(context, widget.unit);
+                          showEditUnitDialog(context, widget.buildingId, widget.unit);
                         },
                         child: Row(
                           children: [
@@ -164,7 +177,16 @@ class _UnitTileState extends State<UnitTile> with SingleTickerProviderStateMixin
                           setState(() {
                             _isOverlayVisible = false;
                           });
-                          showDeleteDialog(context, controller: controller, onDelete: () {}, name: 'unit name');
+                          showDeleteDialog(
+                            context,
+                            onDelete: () async {
+                              await ref
+                                  .read(buildingsViewModelProvider.notifier)
+                                  .deleteUnit(widget.buildingId, widget.unit.id.toString() ?? '');
+                              await ref.read(buildingViewModelProvider(widget.buildingId).notifier).fetchData(widget.buildingId);
+                            },
+                            name: widget.unit.name ?? '',
+                          );
                         },
                         child: Row(
                           children: [
@@ -188,15 +210,14 @@ class _UnitTileState extends State<UnitTile> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     final unit = widget.unit;
     final Color staticBackgroundColor =
-        unit.isAlert
+        unit.alert == 1
             ? Colors.red.withOpacity(0.3)
-            : unit.status == 'normal'
+            : unit.alert == 0
             ? themeGreen.withOpacity(0.3)
             : commonWhite;
-    final Color borderColor = unit.tileColor;
-    final Color mainTextColor = unit.isAlert || unit.status == 'offline' ? commonWhite : commonBlack;
-    final Color detailColor = unit.isAlert ? commonWhite : commonGrey6;
-    final Color iconColor = unit.isAlert || unit.status == 'offline' ? commonWhite : commonGrey6;
+    final Color mainTextColor = unit.alert == 1 || unit.alert == 3 ? commonWhite : commonBlack;
+    final Color detailColor = unit.alert == 1 ? commonWhite : commonGrey6;
+    final Color iconColor = unit.alert == 1 || unit.alert == 3 ? commonWhite : commonGrey6;
 
     // 타일 전체 디자인
     Widget tileDesign(Color bgColor) {
@@ -216,9 +237,10 @@ class _UnitTileState extends State<UnitTile> with SingleTickerProviderStateMixin
 }
 
 class BuildingDetailScreen extends ConsumerStatefulWidget {
-  const BuildingDetailScreen({required this.building, super.key});
+  const BuildingDetailScreen({required this.buildingId, super.key});
 
-  final Building building;
+  final String buildingId;
+
   @override
   ConsumerState<BuildingDetailScreen> createState() => _BuildingDetailScreenState();
 }
@@ -227,107 +249,113 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
   DateTime _lastUpdatedTime = DateTime.now();
   TextEditingController controller = TextEditingController();
   final ScrollController scrollController = ScrollController();
-
+  late Building building;
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              topTitle('Building Details', 'Unit Status Overview', DateTime.now(), () {
-                setState(() {
-                  _lastUpdatedTime = DateTime.now();
-                });
-              }, isBackButton: true),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final double screenWidth = constraints.maxWidth;
-                  const double threshold = 900;
-                  final Widget inputBox = ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 408),
-                    child: InputBox(
-                      controller: controller,
-                      label: 'Search unit',
-                      maxLength: 32,
-                      isErrorText: true,
-                      icon: Padding(padding: const EdgeInsets.only(left: 8), child: SvgPicture.asset('assets/images/ic_16_search.svg')),
-                      onSaved: (val) {},
-                      textStyle: bodyCommon(commonBlack),
-                      textType: 'normal',
-                      validator: (value) {
-                        return null;
-                      },
-                      onChanged: (val) {
-                        setState(() {});
-                      },
-                    ),
-                    // child: InputBoxFilter(
-                    //   controller: controller,
-                    //   filterTitle: 'Filter for searching building',
-                    //   placeHolder: 'Search building',
-                    //   filters: const ['Building', 'Address', 'Manager'],
-                    //   onFilterSelected: (index) {
-                    //     setState(() {
-                    //       currentFilterIndex = index;
-                    //       selectedFilterValue = ['Building', 'Address', 'Manager'][index];
-                    //     });
-                    //   },
-                    // ),
-                  );
-                  final Widget searchButton = InkWell(
-                    onTap: () {},
-                    child: Container(
-                      height: 40,
-                      width: 116,
-                      decoration: BoxDecoration(color: themeYellow, borderRadius: BorderRadius.circular(4)),
-                      alignment: Alignment.center,
-                      child: Text('Search', style: bodyTitle(commonWhite)),
-                    ),
-                  );
-                  final Widget addButtonWidget = addButton('Add Unit', () {
-                    showAddUnitDialog(context);
-                  });
-                  if (screenWidth > threshold) {
-                    return Row(
-                      children: [
-                        inputBox,
-                        const SizedBox(width: 12),
-                        searchButton,
-                        const Expanded(child: SizedBox()),
-                        const SizedBox(width: 12),
-                        addButtonWidget,
-                      ],
-                    );
-                  } else {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+    return AsyncProviderWidget(
+      provider: buildingViewModelProvider(widget.buildingId),
+      data: (data) {
+        building = data as Building;
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  topTitle('Building Details', 'Unit Status Overview', DateTime.now(), () {
+                    setState(() {
+                      _lastUpdatedTime = DateTime.now();
+                    });
+                  }, isBackButton: true),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double screenWidth = constraints.maxWidth;
+                      const double threshold = 900;
+                      final Widget inputBox = ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 408),
+                        child: InputBox(
+                          controller: controller,
+                          label: 'Search unit',
+                          maxLength: 32,
+                          isErrorText: true,
+                          icon: Padding(padding: const EdgeInsets.only(left: 8), child: SvgPicture.asset('assets/images/ic_16_search.svg')),
+                          onSaved: (val) {},
+                          textStyle: bodyCommon(commonBlack),
+                          textType: 'normal',
+                          validator: (value) {
+                            return null;
+                          },
+                          onChanged: (val) {
+                            setState(() {});
+                          },
+                        ),
+                        // child: InputBoxFilter(
+                        //   controller: controller,
+                        //   filterTitle: 'Filter for searching building',
+                        //   placeHolder: 'Search building',
+                        //   filters: const ['Building', 'Address', 'Manager'],
+                        //   onFilterSelected: (index) {
+                        //     setState(() {
+                        //       currentFilterIndex = index;
+                        //       selectedFilterValue = ['Building', 'Address', 'Manager'][index];
+                        //     });
+                        //   },
+                        // ),
+                      );
+                      final Widget searchButton = InkWell(
+                        onTap: () {},
+                        child: Container(
+                          height: 40,
+                          width: 116,
+                          decoration: BoxDecoration(color: themeYellow, borderRadius: BorderRadius.circular(4)),
+                          alignment: Alignment.center,
+                          child: Text('Search', style: bodyTitle(commonWhite)),
+                        ),
+                      );
+                      final Widget addButtonWidget = addButton('Add Unit', () {
+                        showAddUnitDialog(context, building.id);
+                      });
+                      if (screenWidth > threshold) {
+                        return Row(
                           children: [
-                            Flexible(flex: 14, child: inputBox),
-                            const SizedBox(width: 8),
+                            inputBox,
+                            const SizedBox(width: 12),
                             searchButton,
                             const Expanded(child: SizedBox()),
+                            const SizedBox(width: 12),
+                            addButtonWidget,
                           ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(children: [const SizedBox(width: 12), addButtonWidget]),
-                      ],
-                    );
-                  }
-                },
+                        );
+                      } else {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(flex: 14, child: inputBox),
+                                const SizedBox(width: 8),
+                                searchButton,
+                                const Expanded(child: SizedBox()),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(children: [const SizedBox(width: 12), addButtonWidget]),
+                          ],
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  buildResponsiveBuildingCard(),
+                  const SizedBox(height: 16),
+                ],
               ),
-              const SizedBox(height: 16),
-              buildResponsiveBuildingCard(),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-        Expanded(child: SingleChildScrollView(child: _buildUnitGrid())),
-      ],
+            ),
+            Expanded(child: SingleChildScrollView(child: _buildUnitGrid(building))),
+          ],
+        );
+      },
     );
   }
 
@@ -354,7 +382,7 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 24),
-                    Text(widget.building.name, style: headLineSmall(commonBlack), overflow: TextOverflow.ellipsis, maxLines: 1),
+                    Text(building.name, style: headLineSmall(commonBlack), overflow: TextOverflow.ellipsis, maxLines: 1),
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -363,7 +391,7 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                           colorFilter: const ColorFilter.mode(commonGrey6, BlendMode.srcIn),
                         ),
                         const SizedBox(width: 4),
-                        Text(widget.building.address, style: bodyCommon(commonGrey6), overflow: TextOverflow.ellipsis, maxLines: 1),
+                        Text(building.address, style: bodyCommon(commonGrey6), overflow: TextOverflow.ellipsis, maxLines: 1),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -371,7 +399,11 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                       children: [
                         SvgPicture.asset('assets/images/ic_24_person.svg', colorFilter: ColorFilter.mode(commonGrey6, BlendMode.srcIn)),
                         const SizedBox(width: 4),
-                        Text(widget.building.manager, style: bodyCommon(commonGrey6), maxLines: 1),
+                        Text(
+                          (building.managerList ?? []).map((m) => m.name ?? '이름 없음').join(', '),
+                          style: bodyCommon(commonGrey6),
+                          maxLines: 1,
+                        ),
                       ],
                     ),
                   ],
@@ -392,7 +424,7 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                     children: [
                       StatusChip(status: 'total'),
                       const SizedBox(height: 12),
-                      Text(widget.building.totalUnit.toString(), style: titleLarge(commonBlack)),
+                      Text(building.totalUnit.toString(), style: titleLarge(commonBlack)),
                     ],
                   ),
                 ),
@@ -403,7 +435,7 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                     children: [
                       StatusChip(status: 'normal'),
                       const SizedBox(height: 12),
-                      Text(widget.building.activeUnit.toString(), style: titleLarge(successGreen)),
+                      Text(building.activeUnit.toString(), style: titleLarge(successGreen)),
                     ],
                   ),
                 ),
@@ -414,7 +446,7 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                     children: [
                       StatusChip(status: 'critical'),
                       const SizedBox(height: 12),
-                      Text(widget.building.criticalUnit.toString(), style: titleLarge(warningRed)),
+                      Text(building.criticalUnit.toString(), style: titleLarge(warningRed)),
                     ],
                   ),
                 ),
@@ -425,7 +457,7 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                     children: [
                       StatusChip(status: 'warning'),
                       const SizedBox(height: 12),
-                      Text(widget.building.warningUnit.toString(), style: titleLarge(themeYellow)),
+                      Text(building.warningUnit.toString(), style: titleLarge(themeYellow)),
                     ],
                   ),
                 ),
@@ -455,13 +487,13 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
     );
   }
 
-  Widget _buildUnitGrid() {
+  Widget _buildUnitGrid(Building building) {
     // ✅ 1. 검색어(controller.text)를 기준으로 필터링된 리스트 생성
     final filteredUnits =
-        widget.building.unitList.where((unit) {
+        building.unitList.where((unit) {
           final searchTerm = controller.text.toLowerCase();
           // 유닛 번호(unit.number)에 검색어가 포함되어 있는지 확인 (대소문자 구분 없음)
-          return unit.number.toLowerCase().contains(searchTerm);
+          return (unit.name ?? '').toLowerCase().contains(searchTerm);
         }).toList();
 
     return Padding(
@@ -496,11 +528,13 @@ class _BuildingDetailScreenState extends ConsumerState<BuildingDetailScreen> {
                             height: 176,
                             width: itemWidth,
                             child: UnitTile(
+                              buildingId: widget.buildingId,
                               unit: unit,
                               onTap: () {
                                 context.pushNamed(
                                   AppRoute.unitDetail.name,
-                                  pathParameters: {'buildingId': widget.building.id.toString(), 'unitId': unit.id.toString()},
+                                  pathParameters: {'buildingId': building.id.toString(), 'unitId': unit.id.toString()},
+                                  extra: building,
                                 );
                               },
                             ),

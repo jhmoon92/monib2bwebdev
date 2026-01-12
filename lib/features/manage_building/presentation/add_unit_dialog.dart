@@ -2,28 +2,29 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
-import '../../../common_widgets/button.dart';
+import 'package:moni_pod_web/common_widgets/async_value_widget.dart';
+import 'package:moni_pod_web/common_widgets/fail_dialog.dart';
+import 'package:moni_pod_web/features/admin_member/application/member_view_model.dart';
+import '../../../common/provider/sensing/building_resp.dart';
+import '../../../common/provider/sensing/member_resp.dart';
 import '../../../common_widgets/custom_dialog.dart';
 import '../../../common_widgets/input_box.dart';
+import '../../../common_widgets/success_dialog.dart';
 import '../../../config/style.dart';
-import '../domain/unit_model.dart';
+import '../application/buildings_view_model.dart';
 
-const String googleApiKey = 'AIzaSyBUc2bj_VUyH-kmgsFJxDgT4OXBUQBp2O0';
-
-class Manager {
-  final String name;
-  final String id;
-  final bool isMaster;
-
-  Manager({required this.name, required this.id, this.isMaster = false});
-}
-
-void showAddUnitDialog(BuildContext context) {
-  showCustomDialog(context: context, title: 'Add Unit', content: const SizedBox(width: 680, height: 700, child: AddUnitDialog()));
+void showAddUnitDialog(BuildContext context, String buildingId) {
+  showCustomDialog(
+    context: context,
+    title: 'Add Unit',
+    content: SizedBox(width: 680, height: 700, child: AddUnitDialog(buildingId: buildingId)),
+  );
 }
 
 class AddUnitDialog extends ConsumerStatefulWidget {
-  const AddUnitDialog({super.key});
+  const AddUnitDialog({required this.buildingId, super.key});
+
+  final String buildingId;
   @override
   ConsumerState<AddUnitDialog> createState() => _AddUnitDialogState();
 }
@@ -48,8 +49,12 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
   late Animation<double> _animation1;
   late AnimationController _controller1;
   int _deviceCount = 1;
-  String? _selectedInstallerId = unassignedInstallerId;
+  String _selectedInstallerId = unassignedInstallerId;
   String _searchQuery = '';
+  List<Member> memberList = [];
+  List<Member> residentsList = [];
+  List<Member> installerList = [];
+  Resident? resident;
 
   @override
   void initState() {
@@ -62,10 +67,11 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
     );
     _animation1 = CurvedAnimation(parent: _controller1, curve: Curves.easeIn);
     _animation1.addListener(() {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _progressbarValue1 = _animation1.value;
         });
+      }
     });
   }
 
@@ -85,70 +91,125 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          Container(height: 4, color: themeYellow),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24), // 좌우 패딩만 유지
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 24),
-                  inputText('Unit Number', _unitNumberController, isRequired: true),
-                  const SizedBox(height: 28),
-                  inputText('Resident Name', _residentNameController),
-                  const SizedBox(height: 28),
-                  inputText('Phone Number', _phoneNumberController),
-                  const SizedBox(height: 28),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return AsyncProviderWidget(
+      provider: memberViewModelProvider,
+      onTry: () async {
+        ref.read(memberViewModelProvider.notifier).fetchData();
+      },
+      data: (data) {
+        memberList = data as List<Member>;
+        residentsList = memberList.where((member) => member.authority == 100).toList();
+        installerList = memberList.where((member) => member.authority == 50).toList();
 
-                    children: [
-                      Expanded(flex: 24, child: Text('Number of Devices', style: titleCommon(commonBlack))),
-                      Expanded(flex: 44, child: _buildDeviceCounter()),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: EdgeInsets.only(left: 222),
-                    child: Text("These devices will be created as 'Offline' placeholders.", style: bodyCommon(commonGrey5)),
-                  ),
-                  const SizedBox(height: 28),
-                  Row(
+        return Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              Container(height: 4, color: themeYellow),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24), // 좌우 패딩만 유지
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        flex: 24,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Assign Installer', style: titleCommon(commonBlack)),
-                            Text('(Optional)', style: bodyCommon(commonGrey5)),
-                          ],
-                        ),
+                      const SizedBox(height: 24),
+                      inputText('Unit Number', _unitNumberController, isRequired: true),
+                      const SizedBox(height: 28),
+                      dropdownResident(),
+                      const SizedBox(height: 28),
+                      // inputText('Resident Name', _residentNameController),
+                      // inputText('Phone Number', _phoneNumberController),
+                      // const SizedBox(height: 28),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+
+                        children: [
+                          Expanded(flex: 24, child: Text('Number of Devices', style: titleCommon(commonBlack))),
+                          Expanded(flex: 44, child: _buildDeviceCounter()),
+                        ],
                       ),
-                      Expanded(
-                        flex: 44,
-                        child: Column(children: [_buildInstallerSearch(), const SizedBox(height: 12), _buildInstallerList()]),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: EdgeInsets.only(left: 222),
+                        child: Text("These devices will be created as 'Offline' placeholders.", style: bodyCommon(commonGrey5)),
+                      ),
+                      const SizedBox(height: 28),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 24,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Assign Installer', style: titleCommon(commonBlack)),
+                                Text('(Optional)', style: bodyCommon(commonGrey5)),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            flex: 44,
+                            child: Column(children: [_buildInstallerSearch(), const SizedBox(height: 12), _buildInstallerList()]),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+              Container(
+                padding: EdgeInsets.only(right: 24, bottom: 24),
+                alignment: Alignment.bottomRight,
+                child: InkWell(
+                  onTap: () async {
+                    if(_unitNumberController.text.isNotEmpty){
+                      addUnit();
+                    }
+                  },
+                  child: Container(
+                    width: 256,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _unitNumberController.text.isNotEmpty ? themeYellow : commonGrey5,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(width: 4),
+                        Text('Add Unit', style: bodyTitle(_unitNumberController.text.isNotEmpty ? commonWhite : commonGrey6)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          Container(
-            padding: EdgeInsets.only(right: 24, bottom: 24),
-            alignment: Alignment.bottomRight,
-            child: addButton('Add Unit', () {}, imageWidget: Container()),
-          ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  Future<void> addUnit() async {
+    try {
+      UnitServer unit = UnitServer(
+        name: _unitNumberController.text,
+        residents: resident != null ? [resident!] : [],
+        installer: Installer(id: _selectedInstallerId == unassignedInstallerId ? null : int.parse(_selectedInstallerId), name: null),
+        numStations: _deviceCount,
+      );
+      await ref.read(buildingsViewModelProvider.notifier).addUnit(widget.buildingId, unit);
+
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        await showSuccessDialog(context, 'New unit is added.');
+        ref.read(buildingsViewModelProvider.notifier).fetchData();
+      }
+    } on Exception catch (e) {
+      showFailDialog(context, 'Failed to add unit', 'Something went wrong while saving the building. Please try again.', () {});
+    }
   }
 
   Widget _buildDeviceCounter() {
@@ -270,6 +331,7 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
         setState(() {
           _selectedInstallerId = id;
         });
+        print(_selectedInstallerId);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -282,6 +344,53 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
           ],
         ),
       ),
+    );
+  }
+
+  Widget dropdownResident() {
+    List<String> residentNames = residentsList.map((member) => member.name).toList();
+
+    return Row(
+      children: [
+        Expanded(flex: 24, child: Text('Resident Name', style: titleCommon(commonBlack))),
+        const SizedBox(height: 4),
+        Expanded(
+          flex: 44,
+          child: DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: const BorderSide(color: commonGrey2, width: 1.0),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: const BorderSide(color: commonGrey2, width: 1.0),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: const BorderSide(color: themeYellow, width: 2.0),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+            ),
+            hint: Text('Assign Resident', style: bodyCommon(commonGrey7)),
+            value: null,
+            items:
+                residentNames.map((String value) {
+                  return DropdownMenuItem<String>(value: value, child: Text(value, style: bodyCommon(commonGrey7)));
+                }).toList(),
+            onChanged: (String? newValue) {
+              int index = residentNames.indexOf(newValue!);
+              setState(() {
+                resident = Resident(
+                  id: residentsList[index].id,
+                  name: residentsList[index].name,
+                  phoneNumber: residentsList[index].phoneNumber,
+                );
+              });
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -327,6 +436,9 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
                 validator: (value) {
                   return null;
                 },
+                onChanged: (value) {
+                  setState(() {});
+                },
               ),
             ],
           ),
@@ -339,7 +451,7 @@ class _AddUnitDialogState extends ConsumerState<AddUnitDialog> with TickerProvid
   List<Map<String, dynamic>> _getFilteredInstallerOptions() {
     final List<Map<String, dynamic>> allOptions = [
       {'id': unassignedInstallerId, 'name': 'Do not assign yet', 'icon': Icons.person_off_outlined},
-      ...dummyInstallers.map((i) => {'id': i.id, 'name': i.name, 'icon': Icons.person_outline}),
+      ...installerList.map((i) => {'id': i.id.toString(), 'name': i.name, 'icon': Icons.person_outline}),
     ];
 
     if (_searchQuery.isEmpty) {

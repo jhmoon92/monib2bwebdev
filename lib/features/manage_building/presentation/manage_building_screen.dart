@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:moni_pod_web/common/provider/sensing/building_resp.dart';
+import 'package:moni_pod_web/common_widgets/async_value_widget.dart';
 import 'package:moni_pod_web/common_widgets/delete_dialog.dart';
 import 'package:moni_pod_web/common_widgets/status_chip.dart';
 import 'package:moni_pod_web/config/style.dart';
+import 'package:moni_pod_web/features/manage_building/application/buildings_view_model.dart';
 import 'package:moni_pod_web/router.dart';
 
 import '../../../common_widgets/button.dart';
@@ -28,145 +31,155 @@ class _ManageBuildingScreenState extends ConsumerState<ManageBuildingScreen> {
   DateTime _lastUpdatedTime = DateTime.now();
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          topTitle('Managed Buildings', 'Monitor and manage your properties', _lastUpdatedTime, () {
-            setState(() {
-              _lastUpdatedTime = DateTime.now();
-            });
-          }),
+    return AsyncProviderWidget(
+      provider: buildingsViewModelProvider,
+      onTry: () async {
+        ref.read(buildingsViewModelProvider.notifier).fetchData();
+      },
+      data: (data) {
+        List<Building> buildings = data as List<Building>;
 
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final double screenWidth = constraints.maxWidth;
-              const double threshold = 900;
-              final Widget inputBox = ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 408),
-                child: InputBox(
-                  controller: controller,
-                  label: 'Search building',
-                  maxLength: 32,
-                  isErrorText: true,
-                  icon: Padding(padding: const EdgeInsets.only(left: 8), child: SvgPicture.asset('assets/images/ic_16_search.svg')),
-                  onSaved: (val) {},
-                  textStyle: bodyCommon(commonBlack),
-                  textType: 'normal',
-                  validator: (value) {
-                    return null;
-                  },
-                  onChanged: (val) {
-                    setState(() {});
-                  },
-                ),
-                // child: InputBoxFilter(
-                //   controller: controller,
-                //   filterTitle: 'Filter for searching building',
-                //   placeHolder: 'Search building',
-                //   filters: const ['Building', 'Address', 'Manager'],
-                //   onFilterSelected: (index) {
-                //     setState(() {
-                //       currentFilterIndex = index;
-                //       selectedFilterValue = ['Building', 'Address', 'Manager'][index];
-                //     });
-                //   },
-                // ),
-              );
-              final Widget searchButton = InkWell(
-                onTap: () {},
-                child: Container(
-                  height: 40,
-                  width: 116,
-                  decoration: BoxDecoration(color: themeYellow, borderRadius: BorderRadius.circular(4)),
-                  alignment: Alignment.center,
-                  child: Text('Search', style: bodyTitle(commonWhite)),
-                ),
-              );
-              final Widget addButtonWidget = addButton('Add Building', () {
-                showAddBuildingDialog(context);
-              });
-              if (screenWidth > threshold) {
-                return Row(
-                  children: [
-                    inputBox,
-                    const SizedBox(width: 12),
-                    searchButton,
-                    const Expanded(child: SizedBox()),
-                    const SizedBox(width: 12),
-                    addButtonWidget,
-                  ],
-                );
-              } else {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              topTitle('Managed Buildings', 'Monitor and manage your properties', _lastUpdatedTime, () {
+                setState(() {
+                  _lastUpdatedTime = DateTime.now();
+                });
+              }),
+
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final double screenWidth = constraints.maxWidth;
+                  const double threshold = 900;
+                  final Widget inputBox = ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 408),
+                    child: InputBox(
+                      controller: controller,
+                      label: 'Search building',
+                      maxLength: 32,
+                      isErrorText: true,
+                      icon: Padding(padding: const EdgeInsets.only(left: 8), child: SvgPicture.asset('assets/images/ic_16_search.svg')),
+                      onSaved: (val) {},
+                      textStyle: bodyCommon(commonBlack),
+                      textType: 'normal',
+                      validator: (value) {
+                        return null;
+                      },
+                      onChanged: (val) {
+                        setState(() {});
+                      },
+                    ),
+                    // child: InputBoxFilter(
+                    //   controller: controller,
+                    //   filterTitle: 'Filter for searching building',
+                    //   placeHolder: 'Search building',
+                    //   filters: const ['Building', 'Address', 'Manager'],
+                    //   onFilterSelected: (index) {
+                    //     setState(() {
+                    //       currentFilterIndex = index;
+                    //       selectedFilterValue = ['Building', 'Address', 'Manager'][index];
+                    //     });
+                    //   },
+                    // ),
+                  );
+                  final Widget searchButton = InkWell(
+                    onTap: () {},
+                    child: Container(
+                      height: 40,
+                      width: 116,
+                      decoration: BoxDecoration(color: themeYellow, borderRadius: BorderRadius.circular(4)),
+                      alignment: Alignment.center,
+                      child: Text('Search', style: bodyTitle(commonWhite)),
+                    ),
+                  );
+                  final Widget addButtonWidget = addButton('Add Building', () {
+                    showAddBuildingDialog(context);
+                  });
+                  if (screenWidth > threshold) {
+                    return Row(
                       children: [
-                        Flexible(flex: 14, child: inputBox),
-                        const SizedBox(width: 8),
+                        inputBox,
+                        const SizedBox(width: 12),
                         searchButton,
                         const Expanded(child: SizedBox()),
+                        const SizedBox(width: 12),
+                        addButtonWidget,
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(children: [const SizedBox(width: 12), addButtonWidget]),
-                  ],
-                );
-              }
-            },
+                    );
+                  } else {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(flex: 14, child: inputBox),
+                            const SizedBox(width: 8),
+                            searchButton,
+                            const Expanded(child: SizedBox()),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(children: [const SizedBox(width: 12), addButtonWidget]),
+                      ],
+                    );
+                  }
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    const double breakpointLarge = 1100.0; // 3분할 -> 2분할 전환점
+                    const double breakpointMedium = 800.0; // 2분할 -> 1분할 전환점
+                    const double spacing = 24.0;
+                    final double screenWidth = constraints.maxWidth;
+                    int crossAxisCount;
+                    if (screenWidth >= breakpointLarge) {
+                      crossAxisCount = 3;
+                    } else if (screenWidth >= breakpointMedium) {
+                      crossAxisCount = 2;
+                    } else {
+                      crossAxisCount = 1;
+                    }
+                    final double totalSpacingWidth = spacing * (crossAxisCount - 1);
+                    final double itemWidth = (screenWidth - totalSpacingWidth) / crossAxisCount;
+
+                    final filteredBuildings =
+                        buildings.where((building) {
+                          final searchTerm = controller.text.toLowerCase();
+                          return building.name.toLowerCase().contains(searchTerm);
+                        }).toList();
+
+                    return SingleChildScrollView(
+                      child: Padding(
+                        padding: EdgeInsets.only(bottom: 20),
+                        child: Wrap(
+                          spacing: spacing,
+                          runSpacing: spacing,
+                          children:
+                              filteredBuildings.map((data) {
+                                return InkWell(
+                                  onTap: () {
+                                    context.pushNamed(AppRoute.buildingDetail.name, pathParameters: {'buildingId': data.id}, extra: data.id);
+                                  },
+                                  child: SizedBox(height: 338, width: itemWidth, child: BuildingCard(building: data)),
+                                );
+                              }).toList(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-
-          const SizedBox(height: 16),
-
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                const double breakpointLarge = 1100.0; // 3분할 -> 2분할 전환점
-                const double breakpointMedium = 800.0; // 2분할 -> 1분할 전환점
-                const double spacing = 24.0;
-                final double screenWidth = constraints.maxWidth;
-                int crossAxisCount;
-                if (screenWidth >= breakpointLarge) {
-                  crossAxisCount = 3;
-                } else if (screenWidth >= breakpointMedium) {
-                  crossAxisCount = 2;
-                } else {
-                  crossAxisCount = 1;
-                }
-                final double totalSpacingWidth = spacing * (crossAxisCount - 1);
-                final double itemWidth = (screenWidth - totalSpacingWidth) / crossAxisCount;
-
-                final filteredBuildings =
-                    buildings.where((building) {
-                      final searchTerm = controller.text.toLowerCase();
-                      return building.name.toLowerCase().contains(searchTerm);
-                    }).toList();
-
-                return SingleChildScrollView(
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: 20),
-                    child: Wrap(
-                      spacing: spacing,
-                      runSpacing: spacing,
-                      children:
-                          filteredBuildings.map((data) {
-                            return InkWell(
-                              onTap: () {
-                                context.pushNamed(AppRoute.buildingDetail.name, pathParameters: {'buildingId': data.id});
-                              },
-                              child: Container(height: 338, width: itemWidth, child: BuildingCard(building: data)),
-                            );
-                          }).toList(),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -273,7 +286,8 @@ class _BuildingCardState extends ConsumerState<BuildingCard> {
                                     child: Padding(
                                       padding: const EdgeInsets.only(top: 3),
                                       child: Text(
-                                        widget.building.manager,
+                                        (widget.building.managerList ?? []).map((m) => m.name ?? '이름 없음').join(', '),
+                                        // widget.building.manager,
                                         style: bodyCommon(commonGrey6),
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 3,
@@ -332,11 +346,18 @@ class _BuildingCardState extends ConsumerState<BuildingCard> {
                           ),
                           Expanded(
                             child: InkWell(
-                              onTap: (){
+                              onTap: () async {
                                 setState(() {
                                   _isOverlayVisible = false;
                                 });
-                                showDeleteDialog(context, controller: controller, onDelete: (){}, name: 'building name');
+                                await showDeleteDialog(
+                                  context,
+                                  onDelete: () async {
+                                    await ref.read(buildingsViewModelProvider.notifier).deleteBuilding(widget.building.id);
+                                    await ref.read(buildingsViewModelProvider.notifier).fetchData();
+                                  },
+                                  name: widget.building.name,
+                                );
                               },
                               child: Row(
                                 children: [

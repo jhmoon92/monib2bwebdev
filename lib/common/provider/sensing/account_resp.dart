@@ -15,128 +15,160 @@ class UserLogin {
   factory UserLogin.fromJson(Map<String, dynamic> json) => _$UserLoginFromJson(json);
   Map<String, dynamic> toJson() => _$UserLoginToJson(this);
 }
-@JsonSerializable()
-class UserListResponse {
-  final List<User> content;
-  final Pageable pageable;
-  final int total;
-  final bool last;
-  final int totalPages;
-  final int totalElements;
-  final int size;
-  final int number;
-  final Sort sort;
-  final bool first;
-  final int numberOfElements;
-  final bool empty;
 
-  UserListResponse({
-    required this.content,
-    required this.pageable,
-    required this.total,
-    required this.last,
-    required this.totalPages,
-    required this.totalElements,
-    required this.size,
-    required this.number,
-    required this.sort,
-    required this.first,
-    required this.numberOfElements,
-    required this.empty,
-  });
-
-  factory UserListResponse.fromJson(Map<String, dynamic> json) => _$UserListResponseFromJson(json);
-  Map<String, dynamic> toJson() => _$UserListResponseToJson(this);
-}
-
-@JsonSerializable()
 class User {
   final int id;
   final String email;
-  final String status;
-  final String signInDate;
-  final bool isPaired;
-  final int pairedNum;
+  final String nickname;
+  final String phoneNumber;
+  final String institution;
+  final String authority;
+  final String lastLoginDate;
   final String createdAt;
+  final bool accountDeleted;
+  final bool accountLock;
+  final bool accountExpired;
+  final bool needChangePW;
   final String memo;
+  final List<MenuModel> menuList;
+  final List<int> resourceList;
 
   User({
     required this.id,
     required this.email,
-    required this.status,
-    required this.signInDate,
-    required this.isPaired,
-    required this.pairedNum,
+    required this.nickname,
+    required this.phoneNumber,
+    required this.institution,
+    required this.authority,
+    required this.lastLoginDate,
     required this.createdAt,
+    required this.accountDeleted,
+    required this.accountLock,
+    required this.accountExpired,
+    required this.needChangePW,
     required this.memo,
+    required this.menuList,
+    required this.resourceList,
   });
 
-  factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
-  Map<String, dynamic> toJson() => _$UserToJson(this);
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] ?? 0,
+      email: json['email'] ?? '',
+      nickname: json['nickname'] ?? '',
+      phoneNumber: json['phoneNumber'] ?? '',
+      institution: json['institution'] ?? '',
+      authority: json['authority'] ?? '',
+      lastLoginDate: json['lastLoginDate'] ?? '',
+      createdAt: json['createdAt'] ?? '',
+      accountDeleted: json['accountDeleted'] ?? false,
+      accountLock: json['accountLock'] ?? false,
+      accountExpired: json['accountExpired'] ?? false,
+      needChangePW: json['needChangePW'] ?? false,
+      memo: json['memo'] ?? '',
+      menuList: (json['menuList'] as List?)
+          ?.map((e) => MenuModel.fromJson(e))
+          .toList() ?? [],
+      resourceList: List<int>.from(json['resourceList'] ?? []),
+    );
+  }
 }
 
-@JsonSerializable()
-class Pageable {
-  final int page;
-  final int size;
-  final Sort sort;
-  final int offset;
-  final int pageNumber;
-  final int pageSize;
-  final bool paged;
-  final bool unpaged;
+class MenuModel {
+  final int id;
+  final String menuName;
+  final String url;
+  final int orderNum;
+  final bool authorized;
+  final bool useYn;
+  final String icon;
+  final String activeIcon;
 
-  Pageable({
-    required this.page,
-    required this.size,
-    required this.sort,
-    required this.offset,
-    required this.pageNumber,
-    required this.pageSize,
-    required this.paged,
-    required this.unpaged,
+  MenuModel({
+    required this.id,
+    required this.menuName,
+    required this.url,
+    required this.orderNum,
+    required this.authorized,
+    required this.useYn,
+    required this.icon,
+    required this.activeIcon,
   });
 
-  factory Pageable.fromJson(Map<String, dynamic> json) => _$PageableFromJson(json);
-  Map<String, dynamic> toJson() => _$PageableToJson(this);
+  factory MenuModel.fromJson(Map<String, dynamic> json) {
+    return MenuModel(
+      id: json['id'] ?? 0,
+      menuName: json['menuName'] ?? '',
+      url: json['url'] ?? '',
+      orderNum: json['orderNum'] ?? 0,
+      authorized: json['authorized'] ?? false,
+      useYn: json['useYn'] ?? false,
+      icon: json['icon'] ?? '',
+      activeIcon: json['activeIcon'] ?? '',
+    );
+  }
 }
 
-@JsonSerializable()
-class Sort {
-  final List<Order> orders;
-  final bool empty;
-  final bool sorted;
-  final bool unsorted;
+class SignOutModel {
+  final String? message;
+  final int? status;
+  final List<ErrorDetail>? errors;
+  final String? code;
 
-  Sort({
-    required this.orders,
-    required this.empty,
-    required this.sorted,
-    required this.unsorted,
+  SignOutModel({
+    this.message,
+    this.status,
+    this.errors,
+    this.code,
   });
 
-  factory Sort.fromJson(Map<String, dynamic> json) => _$SortFromJson(json);
-  Map<String, dynamic> toJson() => _$SortToJson(this);
+  // JSON 데이터를 객체로 변환
+  factory SignOutModel.fromJson(Map<String, dynamic> json) {
+    return SignOutModel(
+      message: json['message'] as String?,
+      status: json['status'] as int?,
+      errors: (json['errors'] as List<dynamic>?)
+          ?.map((e) => ErrorDetail.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      code: json['code'] as String?,
+    );
+  }
+
+  // 객체를 JSON 데이터로 변환
+  Map<String, dynamic> toJson() {
+    return {
+      'message': message,
+      'status': status,
+      'errors': errors?.map((e) => e.toJson()).toList(),
+      'code': code,
+    };
+  }
 }
 
-@JsonSerializable()
-class Order {
-  final String direction;
-  final String property;
-  final bool ignoreCase;
-  final String nullHandling;
-  final bool ascending;
-  final bool descending;
+class ErrorDetail {
+  final String? field;
+  final String? value;
+  final String? reason;
 
-  Order({
-    required this.direction,
-    required this.property,
-    required this.ignoreCase,
-    required this.nullHandling,
-    required this.ascending,
-    required this.descending,
+  ErrorDetail({
+    this.field,
+    this.value,
+    this.reason,
   });
 
-  factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
-  Map<String, dynamic> toJson() => _$OrderToJson(this);
+  factory ErrorDetail.fromJson(Map<String, dynamic> json) {
+    return ErrorDetail(
+      field: json['field'] as String?,
+      value: json['value'] as String?,
+      reason: json['reason'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'field': field,
+      'value': value,
+      'reason': reason,
+    };
+  }
 }

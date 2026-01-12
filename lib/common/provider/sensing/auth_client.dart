@@ -1,109 +1,74 @@
 import 'dart:convert';
 
-import '../provider_base.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
+import '../dio_api_service.dart';
 import 'account_resp.dart';
 
-const userAuthLoginAPI = "api/sign-in";
-const getAccountListAPI = "api/account/page/accounts?page=0&size=600";
+const userAuthLoginAPI = "api/v2/auth/sign-in";
+const userSignOutAPI = "api/v2/auth/sign-out";
+const userInfoAPI = "api/v2/token";
+const memberInviteAPI = "api/v2/member/invite";
 
 class AuthClient extends ClientProvider {
-  AuthClient(client) : super(client, ApiType.cloudAuth);
+  AuthClient(BaseApi client) : super(client, ApiType.cloudAuth);
 
   Future<UserLogin?> userLogin(String email, String password) async {
-    print("AuthClient userLogin $email $password");
     try {
-      // for test
-      //UserLogin user = UserLogin(
-      //    19, "Bearer", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiO", 1697956820961);
+      final response = await client.httpPost(userAuthLoginAPI, data: {
+        "email": email,
+        "password": password,
+        "rememberMe": true,
+      });
 
-      //return user;
-      ApiResponse response = await client.httpPost(
-          userAuthLoginAPI, null, '{"email":"$email","password":${jsonEncode(password)}, "rememberMe" : true}');
-
-      // for jsonSerialization
       if (response.statusCode == 200) {
-        Map<String, dynamic> resMap = jsonDecode(response.body.toString());
+        final resMap = response.data;
         UserLogin result = UserLogin.fromJson(resMap);
-        print(result.toString());
-
-        print("server account login ok");
         return result;
-      } else {
-
-        return UserLogin("", "", 0);
-
       }
-
-      // // Test code (Sign in Fail Case)
-      // switch (response.statusCode) {
-      //   case 200: // sign_in fail
-      //     Map<String, dynamic> resMap = jsonDecode(response.body.toString());
-      //     UserLogin result = UserLogin.fromJson(resMap);
-      //     print(result.toString());
-      //     user = AccountEntity(
-      //
-      //         /// TODO : have to be changed
-      //         email: username,
-      //         remember: defaultRememberMe,
-      //         token: result.access_token,
-      //         id: result.account_id);
-      //     print("server account logint ok");
-      //     return user;
-      //   case 400:
-      //     Map<String, dynamic> resMap = jsonDecode(response.body.toString());
-      //     UserLogin result = UserLogin.fromJson(resMap);
-      //     print(result.toString());
-      //     user = AccountEntity(
-      //
-      //         /// TODO : have to be changed
-      //         email: username,
-      //         remember: defaultRememberMe,
-      //         token: result.access_token,
-      //         id: result.account_id);
-      //     print("server account logint ok");
-      //     return user;
-      //   case 401:
-      //     throw signInFailException();
-      //   case 402:
-      //     throw alreadyRegisterException();
-      //   case 403:
-      //     throw exceedPasswordException();
-      //   case 404:
-      //     throw dormantInformationException();
-      //   case 405:
-      //     throw passwordChangeException();
-      // }
+      return null;
     } catch (e) {
       rethrow;
-      // print("server account login exception");
-      // if (e is SocketException) {
-      //   throw communicationErrorException;
-      // } else {
-      //   rethrow;
-      // }
     }
   }
 
-  Future<UserListResponse?> getAccountList() async {
+  Future<User?> getUserInfo() async {
     try {
-      ApiResponse response = await client.httpGet(getAccountListAPI);
-
-      // for jsonSerialization
+      final response = await client.httpGet(userInfoAPI);
       if (response.statusCode == 200) {
-        Map<String, dynamic> resMap = jsonDecode(response.body.toString());
-        UserListResponse result = UserListResponse.fromJson(resMap);
-        print(result.toString());
-
-        print("Account List ok");
+        final resMap = response.data;
+        User result = User.fromJson(resMap);
         return result;
       } else {
-        throw Exception("error");
+        return null;
       }
-
+    } on DioException catch (e) {
+      debugPrint("getUserInfo DioError: ${e.message}");
+      rethrow;
     } catch (e) {
+      debugPrint("getUserInfo GeneralError: $e");
       rethrow;
     }
   }
 
+  Future<SignOutModel?> signOut(String email, String password) async {
+    try {
+      final response = await client.httpPost(userSignOutAPI, data: {
+        "email": email,
+        "password": password,
+        "rememberMe": true,
+      });
+
+      if (response.statusCode == 200) {
+        final resMap = response.data;
+        SignOutModel result = SignOutModel.fromJson(resMap);
+        return result;
+      }
+      return null;
+    } catch (e) {
+      rethrow;
+    }
+  }
 
 }

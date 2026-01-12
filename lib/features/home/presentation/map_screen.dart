@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 // import 'package:moni_pod_web/config/style.dart'; // 프로젝트에 따라 주석 처리 또는 유지
@@ -78,13 +82,14 @@ class _GoogleMapSearchScreenState extends State<GoogleMapSearchScreen> {
   List<PlacePrediction> _placePredictions = [];
   Timer? _debounce;
   bool _isLoading = false;
+  BitmapDescriptor? customGreenIcon;
+  BitmapDescriptor? customBlueIcon;
 
   @override
   void initState() {
     super.initState();
-    // 고정 마커 초기화
-    _markers = _createFixedMarkers();
-
+    _loadCustomMarkers();
+    // _markers = _createFixedMarkers();
     // 지도가 렌더링 된 후 경계를 계산하여 카메라 이동
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fitFixedBounds();
@@ -98,6 +103,51 @@ class _GoogleMapSearchScreenState extends State<GoogleMapSearchScreen> {
     super.dispose();
   }
 
+  Future<BitmapDescriptor> svgToBitmapDescriptor(
+      BuildContext context, String assetName, Size size) async {
+
+    // 1. SVG 데이터를 Asset에서 바이트로 로드
+    final ByteData data = await rootBundle.load(assetName);
+
+    // 2. SVG 렌더링을 위한 설정
+    final double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final int width = (size.width * devicePixelRatio).toInt();
+    final int height = (size.height * devicePixelRatio).toInt();
+
+    // 3. svg.fromSvgBytes를 사용하여 그림을 그릴 수 있는 캔버스 생성
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final ui.Canvas canvas = ui.Canvas(recorder);
+
+    // SVG 이미지를 그리기 위한 로더 (2.0+ 방식)
+    final SvgLoader loader = SvgAssetLoader(assetName);
+    final PictureInfo pictureInfo = await vg.loadPicture(loader, null);
+
+    // 4. 크기에 맞게 스케일 조정 후 그리기
+    canvas.scale(width / pictureInfo.size.width, height / pictureInfo.size.height);
+    canvas.drawPicture(pictureInfo.picture);
+
+    // 5. 이미지 생성 및 바이트 변환
+    final ui.Picture picture = recorder.endRecording();
+    final ui.Image image = await picture.toImage(width, height);
+    final ByteData? bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+
+    if (bytes == null) return BitmapDescriptor.defaultMarker;
+
+    return BitmapDescriptor.fromBytes(bytes.buffer.asUint8List());
+  }
+
+
+  void _loadCustomMarkers() async {
+    // 원하는 SVG 경로와 크기를 지정 (48x48 등)
+    customGreenIcon = await svgToBitmapDescriptor(context, 'assets/images/ic_24_location.svg', const Size(40, 40));
+    customBlueIcon = await svgToBitmapDescriptor(context, 'assets/images/ic_24_location.svg', const Size(40, 40));
+
+    setState(() {
+      _markers = _createFixedMarkers();
+    });
+  }
+
+
   // -------------------------------------------------------------------------
   // [C. 마커 생성 및 경계 설정]
   // -------------------------------------------------------------------------
@@ -109,16 +159,22 @@ class _GoogleMapSearchScreenState extends State<GoogleMapSearchScreen> {
         markerId: const MarkerId('vort_building'),
         position: _vortBuilding,
         infoWindow: const InfoWindow(title: 'VORT Building'),
+        // 녹색 설정
+        icon: customBlueIcon!,
       ),
       Marker(
         markerId: const MarkerId('tokyo_tower'),
         position: _tokyoTower,
         infoWindow: const InfoWindow(title: 'Tokyo Tower'),
+        // 파란색 설정
+        icon: customGreenIcon!,
       ),
       Marker(
         markerId: const MarkerId('azabudai_hills'),
         position: _azabudaiHills,
         infoWindow: const InfoWindow(title: 'Azabudai Hills Mori JP Tower'),
+        // 노란색 추가 (누락되었던 부분)
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
       ),
     };
   }
@@ -191,47 +247,47 @@ class _GoogleMapSearchScreenState extends State<GoogleMapSearchScreen> {
   // -------------------------------------------------------------------------
   // [로직 2] 장소 선택 및 이동 (Place Details) - 고정 마커 유지 로직 추가
   // -------------------------------------------------------------------------
-  Future<void> _onSuggestionTap(PlacePrediction place) async {
-    setState(() {
-      _searchController.text = place.description;
-      _placePredictions = []; // 리스트 닫기
-    });
-
-    final String url = 'https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.placeId}&key=$googleApiKey';
-
-    try {
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'OK') {
-          final location = data['result']['geometry']['location'];
-          final lat = location['lat'];
-          final lng = location['lng'];
-
-          final targetLatLng = LatLng(lat, lng);
-
-          // 1. 지도 이동
-          final GoogleMapController controller = await _controller.future;
-          controller.animateCamera(CameraUpdate.newLatLngZoom(targetLatLng, 17));
-
-          // 2. 마커 찍기: 고정 마커 유지 + 검색 마커 추가
-          setState(() {
-            _markers = _createFixedMarkers(); // 고정 마커를 다시 로드
-            _markers.add(
-              Marker(
-                  markerId: const MarkerId('selected_place'),
-                  position: targetLatLng,
-                  infoWindow: InfoWindow(title: place.description)
-              ),
-            );
-          });
-        }
-      }
-    } catch (e) {
-      print('Details API Error: $e');
-    }
-  }
+  // Future<void> _onSuggestionTap(PlacePrediction place) async {
+  //   setState(() {
+  //     _searchController.text = place.description;
+  //     _placePredictions = []; // 리스트 닫기
+  //   });
+  //
+  //   final String url = 'https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.placeId}&key=$googleApiKey';
+  //
+  //   try {
+  //     final response = await http.get(Uri.parse(url));
+  //
+  //     if (response.statusCode == 200) {
+  //       final data = json.decode(response.body);
+  //       if (data['status'] == 'OK') {
+  //         final location = data['result']['geometry']['location'];
+  //         final lat = location['lat'];
+  //         final lng = location['lng'];
+  //
+  //         final targetLatLng = LatLng(lat, lng);
+  //
+  //         // 1. 지도 이동
+  //         final GoogleMapController controller = await _controller.future;
+  //         controller.animateCamera(CameraUpdate.newLatLngZoom(targetLatLng, 17));
+  //
+  //         // 2. 마커 찍기: 고정 마커 유지 + 검색 마커 추가
+  //         setState(() {
+  //           _markers = _createFixedMarkers(); // 고정 마커를 다시 로드
+  //           _markers.add(
+  //             Marker(
+  //                 markerId: const MarkerId('selected_place'),
+  //                 position: targetLatLng,
+  //                 infoWindow: InfoWindow(title: place.description),
+  //             ),
+  //           );
+  //         });
+  //       }
+  //     }
+  //   } catch (e) {
+  //     print('Details API Error: $e');
+  //   }
+  // }
 
   // -------------------------------------------------------------------------
   // [D. build Widget]
@@ -304,31 +360,31 @@ class _GoogleMapSearchScreenState extends State<GoogleMapSearchScreen> {
     );
   }
 
-  Widget _buildPredictionList() {
-    return Container(
-      margin: const EdgeInsets.only(top: 5),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
-      ),
-      constraints: const BoxConstraints(maxHeight: 300),
-      child: ListView.separated(
-        padding: EdgeInsets.zero,
-        shrinkWrap: true,
-        itemCount: _placePredictions.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.grey),
-        itemBuilder: (context, index) {
-          final place = _placePredictions[index];
-          return ListTile(
-            leading: const Icon(Icons.location_on, color: Colors.blueGrey),
-            title: Text(place.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
-            onTap: () => _onSuggestionTap(place),
-          );
-        },
-      ),
-    );
-  }
+  // Widget _buildPredictionList() {
+  //   return Container(
+  //     margin: const EdgeInsets.only(top: 5),
+  //     decoration: BoxDecoration(
+  //       color: Colors.white,
+  //       borderRadius: BorderRadius.circular(8),
+  //       boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
+  //     ),
+  //     constraints: const BoxConstraints(maxHeight: 300),
+  //     child: ListView.separated(
+  //       padding: EdgeInsets.zero,
+  //       shrinkWrap: true,
+  //       itemCount: _placePredictions.length,
+  //       separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.grey),
+  //       itemBuilder: (context, index) {
+  //         final place = _placePredictions[index];
+  //         return ListTile(
+  //           leading: const Icon(Icons.location_on, color: Colors.blueGrey),
+  //           title: Text(place.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
+  //           onTap: () => _onSuggestionTap(place),
+  //         );
+  //       },
+  //     ),
+  //   );
+  // }
 }
 
 // ---------------------------------------------------------------------------

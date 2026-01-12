@@ -16,6 +16,8 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     String locale = 'en';
     initializeDateFormatting(locale);
+    final router = ref.watch(routerProvider);
+
     return EasyLocalization(
       supportedLocales: const [Locale('en', 'US')],
       path: 'assets/strings',

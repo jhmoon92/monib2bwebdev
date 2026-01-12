@@ -8,10 +8,21 @@ import 'package:go_router/go_router.dart';
 import 'dart:html' as html;
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:moni_pod_web/common/provider/sensing/building_resp.dart';
+import 'package:moni_pod_web/common_widgets/async_value_widget.dart';
 import 'package:moni_pod_web/common_widgets/button.dart';
+import 'package:moni_pod_web/features/admin_member/application/member_view_model.dart';
+import 'package:moni_pod_web/features/manage_building/application/buildings_view_model.dart';
+import 'package:moni_pod_web/features/manage_building/domain/unit_model.dart';
+import '../../../common/provider/sensing/member_resp.dart';
 import '../../../common_widgets/custom_dialog.dart';
 import '../../../common_widgets/input_box.dart';
 import '../../../config/style.dart';
+import '../../admin_member/domain/member_model.dart';
+import '../../admin_member/presentation/admin_members_screen.dart';
+import '../../home/presentation/map_screen.dart';
+import 'dart:js_util' as js_util;
+import 'dart:js' as js;
 
 const String googleApiKey = 'AIzaSyBUc2bj_VUyH-kmgsFJxDgT4OXBUQBp2O0';
 
@@ -39,31 +50,34 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _buildingNameController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _regionController = TextEditingController();
   final TextEditingController _startFloorController = TextEditingController();
   final TextEditingController _endFloorController = TextEditingController();
   final TextEditingController _unitsPerFloorController = TextEditingController();
   final TextEditingController _customUnitController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ScrollController _previewScrollController = ScrollController();
-  List<String> _addressSuggestions = [];
   Timer? _debounce;
-  bool _isSearchingAddress = false;
   double _progressbarValue1 = 0;
   bool isStep1 = true;
   late TabController _tabController;
   late Animation<double> _animation1;
   late AnimationController _controller1;
+  double latitude = 0.0;
+  double longitude = 0.0;
+  List<ManagerServer> managerList = [];
+  List<UnitServer> unitList = [];
 
   List<String> _unitSet = [];
 
-  final List<Manager> _managers = [
-    Manager(name: 'Yamada Taro (Master)', id: 'taro_admin', isMaster: true),
-    Manager(name: 'Tanaka Kenji', id: 'tanaka_k'),
-    Manager(name: 'Sato Haruka', id: 'sato_h'),
-    Manager(name: 'Suzuki Ryota', id: 'suzuki_r'),
-    Manager(name: 'Takahashi Aoi', id: 'takahashi_a'),
-    Manager(name: 'Watanabe Yui', id: 'watanabe_y'),
-  ];
+  // final List<Manager> _managers = [
+  //   Manager(name: 'Yamada Taro (Master)', id: 'taro_admin', isMaster: true),
+  //   Manager(name: 'Tanaka Kenji', id: 'tanaka_k'),
+  //   Manager(name: 'Sato Haruka', id: 'sato_h'),
+  //   Manager(name: 'Suzuki Ryota', id: 'suzuki_r'),
+  //   Manager(name: 'Takahashi Aoi', id: 'takahashi_a'),
+  //   Manager(name: 'Watanabe Yui', id: 'watanabe_y'),
+  // ];
 
   Map<String, bool> _selectedManagers = {};
 
@@ -72,13 +86,17 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
   // 2. 이미지 미리보기를 위한 바이트 데이터 저장
   Uint8List? _imageFileBytes;
 
+  final FocusNode _focusNode = FocusNode();
+  final LayerLink _layerLink = LayerLink();
+  final TextEditingController _controller = TextEditingController();
+  OverlayEntry? _overlayEntry;
+  List<Map<String, dynamic>> _predictions = [];
+
   @override
   void initState() {
     super.initState();
     _generateUnits();
-    for (var manager in _managers) {
-      _selectedManagers[manager.id] = manager.isMaster;
-    }
+
     _tabController = TabController(length: 2, vsync: this, animationDuration: const Duration(milliseconds: 500));
     _controller1 = AnimationController(
       vsync: this,
@@ -91,6 +109,16 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
         setState(() {
           _progressbarValue1 = _animation1.value;
         });
+    });
+
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) {
+        Future.delayed(const Duration(milliseconds: 150), () {
+          if (!_focusNode.hasFocus) {
+            _hideOverlay();
+          }
+        });
+      }
     });
   }
 
@@ -109,70 +137,57 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
     super.dispose();
   }
 
-  // 1. Google Maps 주소 검색 로직 (API 호출 구조 활성화)
-  void _onAddressSearch(String query) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
+  Future<void> _waitGoogleMapsReady({Duration timeout = const Duration(seconds: 10)}) async {
+    final start = DateTime.now();
+    while (true) {
+      final readyFlag = js.context['__gmapsReady'] == true;
+      final hasGoogle = js_util.hasProperty(js.context, 'google');
+      if (readyFlag && hasGoogle) return;
 
-    _debounce = Timer(const Duration(milliseconds: 300), () async {
-      if (query.isEmpty) {
-        setState(() {
-          _addressSuggestions = [];
-        });
-        return;
+      if (DateTime.now().difference(start) > timeout) {
+        throw StateError('Google Maps JS SDK not ready. (script load 실패/키/리퍼러/API/Billing 확인)');
       }
-
-      setState(() {
-        _isSearchingAddress = true;
-      });
-
-      // 실제 Google Places API Autocomplete 호출 로직 활성화
-      // 참고: 이 코드가 정상 작동하려면 프로젝트에 'http' 패키지가 추가되어야 합니다.
-      final apiUrl = '/api/places/maps/api/place/autocomplete/json?input=$query&key=$googleApiKey&language=ko&components=country:kr';
-      // final apiUrl = 'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$query&key=$googleApiKey&language=ko&components=country:kr';
-
-      try {
-        final response = await http.get(Uri.parse(apiUrl));
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          final predictions = data['predictions'] as List<dynamic>;
-          if (mounted) {
-            setState(() {
-              // 최대 5개의 주소 제안 목록
-              _addressSuggestions = predictions.map((p) => p['description'] as String).take(5).toList();
-            });
-          }
-        } else {
-          print('Google Places API Error: ${response.statusCode}');
-          if (mounted) {
-            setState(() {
-              _addressSuggestions = ['주소 검색 오류 발생 (Code: ${response.statusCode})'];
-            });
-          }
-        }
-      } catch (e) {
-        print('Exception during address search: $e');
-        if (mounted) {
-          setState(() {
-            _addressSuggestions = ['주소 검색 중 예외 발생'];
-          });
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isSearchingAddress = false;
-          });
-        }
-      }
-    });
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+    }
   }
 
-  // 주소 제안 항목 선택 처리
-  void _selectAddress(String address) {
-    _addressController.text = address;
-    setState(() {
-      _addressSuggestions = [];
-    });
+  void _getAutocomplete(String input) async {
+    if (input.isEmpty) {
+      _hideOverlay();
+      setState(() => _predictions = []);
+      return;
+    }
+
+    js.context.callMethod('getGooglePredictions', [
+      input,
+      js.allowInterop((predictions) {
+        setState(() {
+          // [수정] JsArray를 Dart List로 변환
+
+          final List<dynamic> decoded = jsonDecode(predictions);
+          _predictions = decoded.cast<Map<String, dynamic>>();
+
+          // _predictions = List<dynamic>.from(predictions);
+
+          if (_predictions.isNotEmpty) {
+            _showOverlay();
+          } else {
+            _hideOverlay();
+          }
+        });
+      }),
+    ]);
+  }
+
+  void _showOverlay() {
+    _hideOverlay(); // 기존 오버레이 제거
+    _overlayEntry = _createOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _hideOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
   }
 
   // 2. 이미지 파일 선택 및 미리보기 구현 (웹 전용)
@@ -223,145 +238,216 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          stepper(context),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24), // 좌우 패딩만 유지
-              child: TabBarView(
-                physics: const NeverScrollableScrollPhysics(),
-                controller: _tabController,
-                children: [
-                  Tab(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 24),
-                          Text('Basic Info', style: bodyCommon(commonGrey5)),
-                          const SizedBox(height: 24),
-                          _buildImageUploader(),
-                          const SizedBox(height: 28),
-                          _buildAddressInput(),
-                          const SizedBox(height: 28),
-                          _buildRegion(),
-                          const SizedBox(height: 28),
-                          inputText(
-                            'Building Name',
-                            'e.g.Sunrise Senior Care',
-                            _buildingNameController,
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8),
-                              child: SvgPicture.asset(
-                                'assets/images/ic_24_office.svg',
-                                width: 16,
-                                fit: BoxFit.fitWidth,
-                                colorFilter: ColorFilter.mode(commonGrey5, BlendMode.srcIn),
+    ref.listen<AsyncValue>(memberViewModelProvider, (previous, next) {
+      next.whenData((data) {
+        final list = data as List<Member>;
+
+        list.sort((a, b) {
+          int getPriority(int authority) {
+            switch (authority) {
+              case 1: return 1;
+              case 20: return 2;
+              case 50: return 3;
+              default: return 4; // etc
+            }
+          }
+
+          return getPriority(a.authority).compareTo(getPriority(b.authority));
+        });
+
+        if (list.isNotEmpty && _selectedManagers.isEmpty) {
+          // 아직 초기화되지 않은 경우만 실행
+          setState(() {
+            managerList.clear();
+            for (var member in list) {
+              bool isMaster = (member.authority == 1);
+              _selectedManagers[member.id.toString()] = isMaster;
+              if (isMaster) {
+                managerList.add(ManagerServer(id: member.id, name: member.name, phoneNumber: member.phoneNumber, email: member.email));
+              }
+            }
+          });
+        }
+      });
+    });
+
+    return Scaffold(
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            stepper(context),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24), // 좌우 패딩만 유지
+                child: TabBarView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  controller: _tabController,
+                  children: [
+                    Tab(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 24),
+                            Text('Basic Info', style: bodyCommon(commonGrey5)),
+                            const SizedBox(height: 24),
+                            _buildImageUploader(),
+                            const SizedBox(height: 28),
+                            _buildAddressInput(),
+                            const SizedBox(height: 28),
+                            _buildRegion(),
+                            const SizedBox(height: 28),
+                            inputText(
+                              'Building Name',
+                              'e.g.Sunrise Senior Care',
+                              _buildingNameController,
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: SvgPicture.asset(
+                                  'assets/images/ic_24_office.svg',
+                                  width: 16,
+                                  fit: BoxFit.fitWidth,
+                                  colorFilter: ColorFilter.mode(commonGrey5, BlendMode.srcIn),
+                                ),
                               ),
+                              isRequired: true,
                             ),
-                            isRequired: true,
-                          ),
-                          const SizedBox(height: 28),
-                          _buildAssignedManagers(),
-                        ],
+                            const SizedBox(height: 28),
+                            SizedBox(height: 160, child: _buildAssignedManagers()),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  // Tab 2 Content
-                  Tab(child: step2Screen()),
+                    // Tab 2 Content
+                    Tab(child: step2Screen()),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  isStep1
+                      ? Container()
+                      : InkWell(
+                        onTap: () {
+                          Future.delayed(const Duration(milliseconds: 10), () {
+                            if (mounted) {
+                              setState(() {
+                                FocusScope.of(context).unfocus();
+                                _controller1.reverse();
+                                _tabController.animateTo(0);
+                                isStep1 = true;
+                              });
+                            }
+                          });
+                        },
+                        child: Container(
+                          width: 256,
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: commonWhite,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: commonGrey2, width: 1),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/images/ic_24_previous.svg',
+                                colorFilter: const ColorFilter.mode(commonBlack, BlendMode.srcIn),
+                              ),
+                              const SizedBox(width: 4),
+                              Text('Back', style: bodyTitle(commonBlack)),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                  Expanded(child: SizedBox()),
+                  isStep1
+                      ? InkWell(
+                        onTap: () {
+                          if (_addressController.text.isNotEmpty && _buildingNameController.text.isNotEmpty) {
+                            _controller1.forward();
+                            _tabController.animateTo(1);
+                            if (mounted) {
+                              setState(() {
+                                isStep1 = false;
+                              });
+                            }
+                          }
+                        },
+                        child: Container(
+                          width: 256,
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color:
+                                _addressController.text.isNotEmpty && _buildingNameController.text.isNotEmpty ? themeYellow : commonGrey5,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Next',
+                                style: bodyTitle(
+                                  _addressController.text.isNotEmpty && _buildingNameController.text.isNotEmpty ? commonWhite : commonGrey6,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_right_alt,
+                                size: 24,
+                                color:
+                                    _addressController.text.isNotEmpty && _buildingNameController.text.isNotEmpty
+                                        ? commonWhite
+                                        : commonGrey6,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      : InkWell(
+                        onTap: () async {
+                          unitList =
+                              _unitSet.map((unitName) {
+                                return UnitServer(name: unitName);
+                              }).toList();
+
+                          BuildingServer building = BuildingServer(
+                            id: "",
+                            name: _buildingNameController.text,
+                            image: '',
+                            region: _regionController.text,
+                            address: _addressController.text,
+                            latitude: latitude,
+                            longitude: longitude,
+                            managers: managerList,
+                            units: unitList,
+                          );
+                          await ref.read(buildingsViewModelProvider.notifier).addBuilding(building);
+                          context.pop();
+                          await ref.read(buildingsViewModelProvider.notifier).fetchData();
+                        },
+                        child: Container(
+                          width: 256,
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(color: themeYellow, borderRadius: BorderRadius.circular(4)),
+                          child: Text('Add Building', style: bodyTitle(commonWhite)),
+                        ),
+                      ),
                 ],
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                isStep1
-                    ? Container()
-                    : InkWell(
-                      onTap: () {
-                        Future.delayed(const Duration(milliseconds: 10), () {
-                          if (mounted) {
-                            setState(() {
-                              FocusScope.of(context).unfocus();
-                              _controller1.reverse();
-                              _tabController.animateTo(0);
-                              isStep1 = true;
-                            });
-                          }
-                        });
-                      },
-                      child: Container(
-                        width: 256,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: commonWhite,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: commonGrey2, width: 1),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SvgPicture.asset(
-                              'assets/images/ic_24_previous.svg',
-                              colorFilter: const ColorFilter.mode(commonBlack, BlendMode.srcIn),
-                            ),
-                            const SizedBox(width: 4),
-                            Text('Back', style: bodyTitle(commonBlack)),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                Expanded(child: SizedBox()),
-                isStep1
-                    ? InkWell(
-                      onTap: () {
-                        _controller1.forward();
-                        _tabController.animateTo(1);
-                        if (mounted) {
-                          setState(() {
-                            isStep1 = false;
-                          });
-                        }
-                      },
-                      child: Container(
-                        width: 256,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(color: themeYellow, borderRadius: BorderRadius.circular(4)),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Next', style: bodyTitle(commonWhite)),
-                            const SizedBox(width: 4),
-                            Icon(Icons.arrow_right_alt, size: 24, color: commonWhite),
-                          ],
-                        ),
-                      ),
-                    )
-                    : InkWell(
-                      onTap: () {
-                        context.pop();
-                      },
-                      child: Container(
-                        width: 256,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(color: themeYellow, borderRadius: BorderRadius.circular(4)),
-                        child: Text('Add Building', style: bodyTitle(commonWhite)),
-                      ),
-                    ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -398,45 +484,162 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              InputBox(
-                controller: _addressController,
-                label: 'Type to search (e.g. Seoul)...',
-                maxLength: 32,
-                isErrorText: true,
-                icon: Padding(padding: const EdgeInsets.only(left: 8), child: SvgPicture.asset('assets/images/ic_16_search.svg')),
-                onSaved: (val) {},
-                textStyle: bodyCommon(commonBlack),
-                textType: 'normal',
-                validator: (value) => value == null || value.isEmpty ? 'Please Enter Address' : null,
-                onChanged: _onAddressSearch,
-              ),
-              // 검색 결과 목록
-              if (_addressSuggestions.isNotEmpty)
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.5), blurRadius: 4)],
-                  ),
-                  margin: const EdgeInsets.only(top: 8),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _addressSuggestions.length,
-                    itemBuilder: (context, index) {
-                      final suggestion = _addressSuggestions[index];
-                      return ListTile(
-                        // 2. 검색 제안 텍스트 색상 검은색으로 변경
-                        title: Text(suggestion, style: bodyCommon(commonBlack)),
-                        leading: const Icon(Icons.location_on, size: 20, color: themeYellow),
-                        onTap: () => _selectAddress(suggestion),
-                      );
-                    },
-                  ),
+              CompositedTransformTarget(
+                link: _layerLink,
+                child: InputBox(
+                  controller: _addressController,
+                  focus: _focusNode,
+                  label: 'Type to search (e.g. Seoul)...',
+                  maxLength: 32,
+                  isErrorText: true,
+                  icon: Padding(padding: const EdgeInsets.only(left: 8), child: SvgPicture.asset('assets/images/ic_16_search.svg')),
+                  onSaved: (val) {},
+                  textStyle: bodyCommon(commonBlack),
+                  textType: 'normal',
+                  validator: (value) => value == null || value.isEmpty ? 'Please Enter Address' : null,
+                  onChanged: (value) {
+                    // Debounce: 입력이 멈추고 0.3초 뒤에 검색 실행 (API 비용 절감)
+                    if (_debounce?.isActive ?? false) _debounce!.cancel();
+                    _debounce = Timer(Duration(milliseconds: 300), () {
+                      _getAutocomplete(value);
+                    });
+                  },
                 ),
+
+                // TextField(
+                //   controller: _controller,
+                //   focusNode: _focusNode,
+                //   decoration: InputDecoration(border: OutlineInputBorder(), hintText: "주소를 입력하세요"),
+                //   onChanged: (value) async {
+                //     // 여기서 API 호출 및 결과 업데이트
+                //     // 예시: predictions = await service.searchAddress(value);
+                //     // 데이터가 오면 _hideOverlay() 후 _showOverlay() 호출
+                //   },
+                // ),
+              ),
+              //   InputBox(
+              //     controller: _addressController,
+              //     label: 'Type to search (e.g. Seoul)...',
+              //     maxLength: 32,
+              //     isErrorText: true,
+              //     icon: Padding(padding: const EdgeInsets.only(left: 8), child: SvgPicture.asset('assets/images/ic_16_search.svg')),
+              //     onSaved: (val) {},
+              //     textStyle: bodyCommon(commonBlack),
+              //     textType: 'normal',
+              //     validator: (value) => value == null || value.isEmpty ? 'Please Enter Address' : null,
+              //     onChanged: _onAddressSearch,
+              //   ),
+              //   // 검색 결과 목록
+              //   if (_addressSuggestions.isNotEmpty)
+              //     Container(
+              //       decoration: BoxDecoration(
+              //         color: Colors.white,
+              //         borderRadius: BorderRadius.circular(8),
+              //         boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.5), blurRadius: 4)],
+              //       ),
+              //       margin: const EdgeInsets.only(top: 8),
+              //       child: ListView.builder(
+              //         shrinkWrap: true,
+              //         itemCount: _addressSuggestions.length,
+              //         itemBuilder: (context, index) {
+              //           final suggestion = _addressSuggestions[index];
+              //           return ListTile(
+              //             // 2. 검색 제안 텍스트 색상 검은색으로 변경
+              //             title: Text(suggestion, style: bodyCommon(commonBlack)),
+              //             leading: const Icon(Icons.location_on, size: 20, color: themeYellow),
+              //             onTap: () => _selectAddress(suggestion),
+              //           );
+              //         },
+              //       ),
+              //     ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  // 오버레이 생성 함수
+  OverlayEntry _createOverlayEntry() {
+    RenderBox renderBox = context.findRenderObject() as RenderBox;
+    var size = renderBox.size;
+
+    return OverlayEntry(
+      builder:
+          (context) => Positioned(
+            width: size.width,
+            child: CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              targetAnchor: Alignment.bottomLeft,
+              followerAnchor: Alignment.topLeft,
+              offset: const Offset(0, 5),
+              child: MouseRegion(
+                // 웹에서 커서 모양 변경을 위해 추가
+                cursor: SystemMouseCursors.click,
+                child: Material(
+                  // 🚨 필수: 클릭 이벤트 전달을 위해 필요
+                  elevation: 8,
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    constraints: const BoxConstraints(maxHeight: 250),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      itemCount: _predictions.length,
+                      itemBuilder: (context, index) {
+                        // 여기서 item을 명확히 정의
+                        final item = _predictions[index];
+                        // JS 객체라면 js_util로, Map이라면 아래처럼 접근
+                        final String description = item['description'] ?? "";
+
+                        return ListTile(
+                          leading: const Icon(Icons.location_on, color: themeYellow),
+                          title: Text(description, style: bodyCommon(commonBlack)),
+                          onTap: () {
+                            // 1. placeId가 제대로 있는지 먼저 확인
+                            final String placeId = item['place_id'] ?? "";
+                            if (placeId == "") {
+                              debugPrint("에러: Place ID가 없습니다.");
+                              return;
+                            }
+
+                            debugPrint("선택된 Place ID: $placeId");
+
+                            js.context.callMethod('getPlaceDetails', [
+                              placeId,
+                              js.allowInterop((dynamic jsonResponse) {
+                                // String 대신 dynamic 사용
+                                if (jsonResponse != null && jsonResponse is String) {
+                                  try {
+                                    // 문자열로 들어온 데이터를 Dart Map으로 변환
+                                    final Map<String, dynamic> result = jsonDecode(jsonResponse);
+
+                                    setState(() {
+                                      _addressController.text = result['address'] ?? "";
+                                      _regionController.text = result['region'] ?? "";
+                                      latitude = result['latitude'] ?? 0.0;
+                                      longitude = result['longitude'] ?? 0.0;
+                                    });
+                                  } catch (e) {
+                                    debugPrint("JSON 파싱 에러: $e");
+                                  }
+                                } else {
+                                  debugPrint("응답이 문자열이 아니거나 비어있음: $jsonResponse");
+                                }
+                                _hideOverlay();
+                              }),
+                            ]);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
     );
   }
 
@@ -455,7 +658,7 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
           child: Stack(
             children: [
               InputBox(
-                controller: _addressController,
+                controller: _regionController,
                 label: 'Select address first',
                 maxLength: 32,
                 isErrorText: true,
@@ -472,7 +675,6 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
                   ),
                 ),
                 validator: (value) => value == null || value.isEmpty ? 'Please Enter Address' : null,
-                onChanged: _onAddressSearch,
               ),
               Container(
                 width: double.infinity,
@@ -563,80 +765,112 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
 
   // 5. Assigned Managers 위젯
   Widget _buildAssignedManagers() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(flex: 24, child: Text('Assigned Managers', style: titleCommon(commonBlack))),
-        Expanded(
-          flex: 44,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 160.0),
-                child: Container(
-                  decoration: BoxDecoration(border: Border.all(color: commonGrey2, width: 1), borderRadius: BorderRadius.circular(8)),
-                  child: ScrollbarTheme(
-                    data: ScrollbarThemeData(
-                      thumbColor: WidgetStateProperty.all(commonGrey3),
-                      trackColor: WidgetStateProperty.all(Colors.grey.shade300),
-                    ),
-                    child: Scrollbar(
-                      controller: _scrollController,
-                      interactive: true,
-                      thumbVisibility: true,
-                      thickness: 8.0,
-                      child: ListView.builder(
-                        padding: EdgeInsets.zero,
-                        controller: _scrollController,
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        itemCount: _managers.length,
-                        itemBuilder: (context, index) {
-                          final manager = _managers[index];
-                          final isChecked = _selectedManagers[manager.id] ?? false;
-                          final isDisabled = manager.isMaster; // Master Admin은 선택 해제 불가
+    List<Member> memberList = [];
 
-                          return SizedBox(
-                            height: 40,
-                            child: Theme(
-                              data: Theme.of(context).copyWith(
-                                checkboxTheme: CheckboxThemeData(
-                                  fillColor: WidgetStateProperty.resolveWith<Color?>((states) {
-                                    // 비활성화(disabled) 상태일 때 원하는 진한 회색을 반환
-                                    if (states.contains(WidgetState.disabled)) {
-                                      return commonGrey5; // ✅ 여기서 회색의 농도를 조절하세요 (예: commonGrey6)
-                                    }
-                                    return null; // 그 외 상태는 기본 테마(activeColor 등)를 따름
-                                  }),
+    return AsyncProviderWidget(
+      provider: memberViewModelProvider,
+      onTry: () async {
+        ref.read(memberViewModelProvider.notifier).fetchData();
+      },
+      data: (data) {
+        memberList = data as List<Member>;
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 24, child: Text('Assigned Managers', style: titleCommon(commonBlack))),
+            Expanded(
+              flex: 44,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 160.0),
+                    child: Container(
+                      decoration: BoxDecoration(border: Border.all(color: commonGrey2, width: 1), borderRadius: BorderRadius.circular(8)),
+                      child: ScrollbarTheme(
+                        data: ScrollbarThemeData(
+                          thumbColor: WidgetStateProperty.all(commonGrey3),
+                          trackColor: WidgetStateProperty.all(Colors.grey.shade300),
+                        ),
+                        child: Scrollbar(
+                          controller: _scrollController,
+                          interactive: true,
+                          thumbVisibility: true,
+                          thickness: 8.0,
+                          child: ListView.builder(
+                            clipBehavior: Clip.antiAlias,
+                            padding: EdgeInsets.zero,
+                            controller: _scrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: memberList.length,
+                            itemBuilder: (context, index) {
+                              final manager = memberList[index];
+                              final isChecked = _selectedManagers[manager.id.toString()] ?? false;
+                              final isDisabled = (manager.authority == 1); // Master Admin은 선택 해제 불가
+                              return Container(
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: isDisabled ? commonGrey2 : Colors.white,
+                                  // 하단 경계선이 필요하다면 추가 (선택사항)
+                                  border: Border(bottom: BorderSide(color: commonGrey1, width: 0.5)),
                                 ),
-                              ),
-                              child: CheckboxListTile(
-                                title: Text(manager.name, style: bodyCommon(isDisabled ? commonGrey5 : commonBlack)),
-                                value: isDisabled ? true : isChecked, // 비활성화 항목은 체크 고정
-                                onChanged: isDisabled ? null : (bool? newValue) {
-                                  setState(() {
-                                    _selectedManagers[manager.id] = newValue ?? false;
-                                  });
-                                },
-                                visualDensity: const VisualDensity(horizontal: 0, vertical: -4), // ✅ 수직 밀도를 최소로 줄임
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0), // ✅ 세로 패딩 제거
-                                controlAffinity: ListTileControlAffinity.leading,
-                                checkColor: Colors.white,
-                                activeColor: themeYellow,
-                                tileColor: isDisabled ? commonGrey2 : Colors.white,
-                              ),
-                            ),
-                          );
-                        },
+                                child: Theme(
+                                  data: Theme.of(context).copyWith(
+                                    checkboxTheme: CheckboxThemeData(
+                                      fillColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                                        // 비활성화(disabled) 상태일 때 원하는 진한 회색을 반환
+                                        if (states.contains(WidgetState.disabled)) {
+                                          return commonGrey5; // ✅ 여기서 회색의 농도를 조절하세요 (예: commonGrey6)
+                                        }
+                                        return null; // 그 외 상태는 기본 테마(activeColor 등)를 따름
+                                      }),
+                                    ),
+                                  ),
+                                  child: CheckboxListTile(
+                                    title: Text(manager.name, style: bodyCommon(isDisabled ? commonGrey5 : commonBlack)),
+                                    value: isDisabled ? true : isChecked, // 비활성화 항목은 체크 고정
+                                    onChanged:
+                                        isDisabled
+                                            ? null
+                                            : (bool? newValue) {
+                                              setState(() {
+                                                if (newValue ?? false) {
+                                                  managerList.add(
+                                                    ManagerServer(
+                                                      id: manager.id,
+                                                      name: manager.name,
+                                                      email: manager.email,
+                                                      phoneNumber: manager.phoneNumber,
+                                                    ),
+                                                  );
+                                                } else {
+                                                  managerList.removeWhere((item) => item.id == index);
+                                                }
+                                                _selectedManagers[manager.id.toString()] = newValue ?? false;
+                                              });
+                                            },
+                                    visualDensity: const VisualDensity(horizontal: 0, vertical: -4), // ✅ 수직 밀도를 최소로 줄임
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0), // ✅ 세로 패딩 제거
+                                    controlAffinity: ListTileControlAffinity.leading,
+                                    checkColor: Colors.white,
+                                    activeColor: themeYellow,
+                                    // tileColor: isDisabled ? commonGrey2 : Colors.white,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -670,6 +904,9 @@ class _AddBuildingDialogState extends ConsumerState<AddBuildingDialog> with Tick
                 textType: 'normal',
                 validator: (value) {
                   return null;
+                },
+                onChanged: (value) {
+                  setState(() {});
                 },
               ),
             ],

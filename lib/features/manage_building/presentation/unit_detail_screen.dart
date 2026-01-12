@@ -3,21 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:moni_pod_web/common/provider/sensing/building_resp.dart';
+import 'package:moni_pod_web/common_widgets/async_value_widget.dart';
 import 'package:moni_pod_web/common_widgets/status_chip.dart';
-import 'package:moni_pod_web/features/manage_building/presentation/building_detail_screen.dart';
+import 'package:moni_pod_web/features/manage_building/application/unit_view_model.dart';
 
-import '../../../common/util/util.dart';
 import '../../../common_widgets/button.dart';
 import '../../../common_widgets/input_box.dart';
 import '../../../common_widgets/manger_drop_down.dart';
 import '../../../config/style.dart';
+import '../../admin_member/domain/member_model.dart';
 import '../domain/unit_model.dart';
 
 class UnitDetailScreen extends ConsumerStatefulWidget {
-  const UnitDetailScreen({required this.building, required this.unitInfo, super.key});
+  const UnitDetailScreen({required this.building, required this.unitId, super.key});
 
   final Building building;
-  final Unit unitInfo;
+  final String unitId;
 
   @override
   ConsumerState<UnitDetailScreen> createState() => _UnitDetailScreenState();
@@ -26,62 +28,71 @@ class UnitDetailScreen extends ConsumerStatefulWidget {
 class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final double screenWidth = constraints.maxWidth;
-          const double minContentWidth = 1000.0;
-          const double maxTotalPadding = 400.0;
-          double totalAvailableMargin = screenWidth - minContentWidth;
-          if (totalAvailableMargin > maxTotalPadding) {
-            totalAvailableMargin = maxTotalPadding;
-          } else if (totalAvailableMargin < 0) {
-            totalAvailableMargin = 0;
-          }
-          const double breakpoint = 1000.0;
-          final bool isNarrowScreen = screenWidth < breakpoint;
+    return AsyncProviderWidget(
+      provider: unitViewModelProvider(widget.building.id, widget.unitId),
+      onTry: () async {
+        ref.read(unitViewModelProvider(widget.building.id, widget.unitId).notifier).fetchData(widget.building.id, widget.unitId);
+      },
+      data: (data) {
+        UnitServer unit = data as UnitServer;
+        return SingleChildScrollView(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final double screenWidth = constraints.maxWidth;
+              const double minContentWidth = 1000.0;
+              const double maxTotalPadding = 400.0;
+              double totalAvailableMargin = screenWidth - minContentWidth;
+              if (totalAvailableMargin > maxTotalPadding) {
+                totalAvailableMargin = maxTotalPadding;
+              } else if (totalAvailableMargin < 0) {
+                totalAvailableMargin = 0;
+              }
+              const double breakpoint = 1000.0;
+              final bool isNarrowScreen = screenWidth < breakpoint;
 
-          return Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context),
-                const SizedBox(height: 16),
-                isNarrowScreen
-                    ? Column(
-                      children: [
-                        _StatusCard(widget.unitInfo),
-                        const SizedBox(height: 16),
-                        _RightPanel(unitInfo: widget.unitInfo),
-                        const SizedBox(height: 16),
-                        _LeftPanel(unitInfo: widget.unitInfo),
-                      ],
-                    )
-                    : Column(
-                      children: [
-                        _StatusCard(widget.unitInfo),
-                        const SizedBox(height: 24),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              return Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(context, unit),
+                    const SizedBox(height: 16),
+                    isNarrowScreen
+                        ? Column(
                           children: [
-                            Expanded(flex: 3, child: _LeftPanel(unitInfo: widget.unitInfo)),
-                            const SizedBox(width: 16),
-                            Expanded(flex: 7, child: _RightPanel(unitInfo: widget.unitInfo)),
+                            _StatusCard(unit),
+                            const SizedBox(height: 16),
+                            _RightPanel(unitInfo: unit),
+                            const SizedBox(height: 16),
+                            _LeftPanel(unitInfo: unit),
+                          ],
+                        )
+                        : Column(
+                          children: [
+                            _StatusCard(unit),
+                            const SizedBox(height: 24),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 3, child: _LeftPanel(unitInfo: unit)),
+                                const SizedBox(width: 16),
+                                Expanded(flex: 7, child: _RightPanel(unitInfo: unit)),
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          );
-        },
-      ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, UnitServer unit) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -92,7 +103,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
           child: SvgPicture.asset('assets/images/ic_24_previous.svg', colorFilter: const ColorFilter.mode(commonBlack, BlendMode.srcIn)),
         ),
         const SizedBox(width: 12),
-        Text(widget.unitInfo.number, style: headLineSmall(commonBlack)),
+        Text(unit.name ?? "", style: headLineSmall(commonBlack)),
         Expanded(child: SizedBox()),
         SvgPicture.asset('assets/images/ic_24_location.svg', colorFilter: ColorFilter.mode(commonGrey6, BlendMode.srcIn)),
         const SizedBox(width: 4),
@@ -105,27 +116,27 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
 class _LeftPanel extends StatelessWidget {
   const _LeftPanel({required this.unitInfo});
 
-  final Unit unitInfo;
+  final UnitServer unitInfo;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _ResidentCard(unitInfo: unitInfo),
+        _ResidentCard(residents: unitInfo.residents ?? []),
         const SizedBox(height: 24),
-        _ManagerCard(unitInfo: unitInfo),
+        _ManagerCard(installer: unitInfo.installer),
         const SizedBox(height: 24),
-        InstalledDeviceCard(devices: unitInfo.devices),
+        // InstalledDeviceCard(devices: unitInfo.devices!),
       ],
     );
   }
 }
 
 class _ManagerCard extends StatefulWidget {
-  const _ManagerCard({required this.unitInfo});
+  const _ManagerCard({required this.installer});
 
-  final Unit unitInfo;
+  final Installer? installer;
 
   @override
   State<_ManagerCard> createState() => _ManagerCardState();
@@ -135,25 +146,22 @@ class _ManagerCardState extends State<_ManagerCard> {
   bool _isEditing = false;
 
   Widget _buildInfoRow(String key, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        SizedBox(width: 90, child: Text(key, style: titleCommon(commonGrey7))),
-        Expanded(
-          child:
-              _isEditing && key == 'Name'
-                  ? SizedBox(
-                    height: 40,
-                    child: MangerDropDown(
-                      onChanged: (String value) {
-                        setState(() {});
-                      },
-                    ),
-                  )
-                  : Text(value, style: titleCommon(commonBlack), maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
-      ],
-    );
+    return _isEditing && key == 'Name'
+        ? SizedBox(
+          height: 48,
+          child: MangerDropDown(
+            onChanged: (String value) {
+              setState(() {});
+            },
+          ),
+        )
+        : Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            SizedBox(width: 90, child: Text(key, style: titleCommon(commonGrey7))),
+            Expanded(child: Text(value, style: titleCommon(commonBlack), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          ],
+        );
   }
 
   @override
@@ -230,11 +238,15 @@ class _ManagerCardState extends State<_ManagerCard> {
           SizedBox(height: _isEditing ? 16 : 24),
           Column(
             children: [
-              _buildInfoRow('Name', widget.unitInfo.manager.name),
-              SizedBox(height: _isEditing ? 22 : 28),
-              _buildInfoRow('Account', widget.unitInfo.manager.account),
-              const SizedBox(height: 28),
-              _buildInfoRow('Contact', widget.unitInfo.manager.contact),
+              _buildInfoRow('Name', widget.installer?.name ?? '-'),
+              _isEditing ? Container() : Column(
+                children: [
+                  SizedBox(height: _isEditing ? 22 : 28),
+                  _buildInfoRow('Account', widget.installer?.email ?? '-'),
+                  const SizedBox(height: 28),
+                  _buildInfoRow('Contact', widget.installer?.phoneNumber ?? '-'),
+                ],
+              ),
             ],
           ),
         ],
@@ -244,9 +256,9 @@ class _ManagerCardState extends State<_ManagerCard> {
 }
 
 class _ResidentCard extends StatefulWidget {
-  const _ResidentCard({required this.unitInfo});
+  const _ResidentCard({required this.residents});
 
-  final Unit unitInfo;
+  final List<Resident> residents;
 
   @override
   State<_ResidentCard> createState() => _ResidentCardState();
@@ -255,19 +267,24 @@ class _ResidentCard extends StatefulWidget {
 class _ResidentCardState extends State<_ResidentCard> {
   bool _isEditing = false;
 
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _bornController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController(text: '-');
+  final TextEditingController _bornController = TextEditingController(text: '-');
+  final TextEditingController _phoneController = TextEditingController(text: '-');
   String _genderValue = 'Other';
-
-  final List<String> _genderOptions = ['Female', 'Male', 'Other'];
 
   @override
   void initState() {
-    _nameController.text = widget.unitInfo.resident.name;
-    _bornController.text = widget.unitInfo.resident.born.toString();
-    _phoneController.text = widget.unitInfo.resident.phone;
-    _genderValue = widget.unitInfo.resident.gender;
+    if (widget.residents.isNotEmpty) {
+      _nameController.text = widget.residents[0].name ?? '';
+      _bornController.text = DateFormat('yyyy').format(widget.residents[0].birth ?? DateTime.now());
+      _phoneController.text = widget.residents[0].phoneNumber ?? '';
+      _genderValue =
+          widget.residents[0].gender == 1
+              ? 'Male'
+              : widget.residents[0].gender == 2
+              ? 'Female'
+              : 'Others';
+    }
     super.initState();
   }
 
@@ -275,11 +292,17 @@ class _ResidentCardState extends State<_ResidentCard> {
     setState(() {
       if (_isEditing) {
         if (!save) {
-          // 취소: 원래 값으로 되돌림
-          _nameController.text = widget.unitInfo.resident.name;
-          _bornController.text = widget.unitInfo.resident.born.toString();
-          _phoneController.text = widget.unitInfo.resident.phone;
-          _genderValue = widget.unitInfo.resident.gender;
+          if (widget.residents.isNotEmpty) {
+            _nameController.text = widget.residents[0].name ?? '';
+            _bornController.text = DateFormat('yyyy').format(widget.residents[0].birth ?? DateTime.now());
+            _phoneController.text = widget.residents[0].phoneNumber ?? '';
+            _genderValue =
+                widget.residents[0].gender == 1
+                    ? 'Male'
+                    : widget.residents[0].gender == 2
+                    ? 'Female'
+                    : 'Others';
+          }
         } else {
           // // 저장: 현재 값을 초기값으로 업데이트
           // _initialName = _nameController.text;
@@ -377,7 +400,7 @@ class _ResidentCardState extends State<_ResidentCard> {
         const SizedBox(height: 8),
         _buildEditField('Born', _bornController),
         const SizedBox(height: 8),
-        _buildEditDropdown('Gender', _genderOptions, _genderValue, (String? newValue) {
+        _buildEditDropdown('Gender', gender, _genderValue, (String? newValue) {
           if (newValue != null) {
             setState(() => _genderValue = newValue);
           }
@@ -401,7 +424,7 @@ class _ResidentCardState extends State<_ResidentCard> {
   Widget _buildEditField(String key, TextEditingController controller) {
     return Row(
       children: [
-        SizedBox(width: 80, child: Text(key, style: titleCommon(commonGrey7))),
+        SizedBox(width: 90, child: Text(key, style: titleCommon(commonGrey7))),
         Expanded(
           child: InputBox(
             controller: controller,
@@ -422,6 +445,9 @@ class _ResidentCardState extends State<_ResidentCard> {
   }
 
   Widget _buildEditDropdown(String key, List<String> options, String currentValue, Function(String?) onChanged) {
+    final uniqueOptions = options.toSet().toList();
+    final bool hasValue = uniqueOptions.contains(currentValue);
+
     return Row(
       children: [
         SizedBox(width: 90, child: Text(key, style: titleCommon(commonGrey7))),
@@ -429,18 +455,26 @@ class _ResidentCardState extends State<_ResidentCard> {
           child: Container(
             height: 40,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(border: Border.all(color: commonGrey4, width: 1), borderRadius: BorderRadius.circular(4)),
+            decoration: BoxDecoration(
+                border: Border.all(color: commonGrey4, width: 1),
+                borderRadius: BorderRadius.circular(4)
+            ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 isExpanded: true,
-                value: currentValue,
+                // 리스트에 없는 값이 들어오면 null을 할당하여 에러 방지
+                value: hasValue ? currentValue : null,
                 icon: const Icon(Icons.keyboard_arrow_down, color: commonGrey7),
                 style: bodyCommon(commonBlack),
                 onChanged: onChanged,
-                items:
-                    options.map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(value: value, child: Text(value, style: bodyCommon(commonBlack)));
-                    }).toList(),
+                // 힌트를 추가하면 value가 null일 때 (매칭되는게 없을 때) 보여줍니다.
+                hint: !hasValue ? Text(currentValue, style: bodyCommon(commonGrey5)) : null,
+                items: uniqueOptions.map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value, style: bodyCommon(commonBlack))
+                  );
+                }).toList(),
               ),
             ),
           ),
@@ -448,8 +482,7 @@ class _ResidentCardState extends State<_ResidentCard> {
         const SizedBox(height: 12),
       ],
     );
-  }
-}
+  }}
 
 class InstalledDeviceCard extends StatelessWidget {
   const InstalledDeviceCard({required this.devices, super.key});
@@ -554,7 +587,7 @@ class _DeviceListItem extends StatelessWidget {
 class _RightPanel extends StatelessWidget {
   const _RightPanel({required this.unitInfo});
 
-  final Unit unitInfo;
+  final UnitServer unitInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -566,7 +599,7 @@ class _RightPanel extends StatelessWidget {
 class _StatusCard extends StatelessWidget {
   const _StatusCard(this.unit);
 
-  final Unit unit;
+  final UnitServer unit;
 
   @override
   Widget build(BuildContext context) {
@@ -575,27 +608,36 @@ class _StatusCard extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color:
-            unit.status == 'critical'
+            unit.alert == 1
                 ? warningRedBg2
-                : unit.status == 'warning'
+                : unit.alert == 2
                 ? cautionYellowBg2
-                : unit.status == 'offline'
+                : unit.alert == 3
                 ? commonGrey3
                 : successGreenBg2,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          StatusChip(status: unit.status),
+          StatusChip(
+            status:
+                unit.alert == 1
+                    ? 'critical'
+                    : unit.alert == 2
+                    ? 'warning'
+                    : unit.alert == 3
+                    ? 'offline'
+                    : 'normal',
+          ),
           const SizedBox(width: 12),
           Text(
-            'Last Motion : ${formatMinutesToTimeAgo(unit.lastMotion)}',
+            'Last Motion : ${unit.lastMotion ?? '-'}',
             style: titleLarge(
-              unit.status == 'critical'
+              unit.alert == 1
                   ? warningRed
-                  : unit.status == 'warning'
+                  : unit.alert == 2
                   ? themeYellow
-                  : unit.status == 'offline'
+                  : unit.alert == 3
                   ? commonGrey6
                   : successGreen,
             ),

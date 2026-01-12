@@ -1,26 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:moni_pod_web/config/style.dart';
 
 import 'input_box.dart';
 
-void showDeleteDialog(
-  BuildContext context, {
-  required TextEditingController controller,
-  required String name,
-  required VoidCallback onDelete,
-}) {
-  showDialog(context: context, builder: (context) => CommonDeleteDialog(onDelete: onDelete, controller: controller, name: name)).then((_) {
-    controller.clear();
-  });
+Future<void> showDeleteDialog(BuildContext context, {required String name, required VoidCallback onDelete}) async {
+  showDialog(context: context, builder: (context) => CommonDeleteDialog(onDelete: onDelete, name: name));
 }
 
 class CommonDeleteDialog extends StatefulWidget {
-  final TextEditingController controller;
   final String name;
   final VoidCallback onDelete;
 
-  const CommonDeleteDialog({super.key, required this.name, required this.controller, required this.onDelete});
+  const CommonDeleteDialog({super.key, required this.name, required this.onDelete});
 
   @override
   State<CommonDeleteDialog> createState() => _CommonDeleteDialogState();
@@ -97,7 +90,6 @@ class _CommonDeleteDialogState extends State<CommonDeleteDialog> {
         Text('Enter ${widget.name} you set before', style: deleteCommon(commonBlack)),
         const SizedBox(height: 12),
         InputBox(
-          controller: widget.controller,
           label: 'Enter the name',
           maxLength: 32,
           isErrorText: true,
@@ -107,7 +99,7 @@ class _CommonDeleteDialogState extends State<CommonDeleteDialog> {
           validator: (value) {
             return null;
           },
-          onChanged: (value){
+          onChanged: (value) {
             setState(() {
               temString = value;
             });
@@ -119,16 +111,20 @@ class _CommonDeleteDialogState extends State<CommonDeleteDialog> {
             Expanded(child: SizedBox()),
             InkWell(
               onTap: () {
-                widget.onDelete();
-                Navigator.pop(context);
+                if (temString == widget.name) {
+                  widget.onDelete();
+                  context.pop();
+                }
               },
               child: Container(
                 height: 40,
                 width: 186,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: temString == '' ? commonGrey5 : themeYellow, borderRadius: BorderRadius
-                    .circular(4)),
-                child: Text('OK', style: bodyTitle(temString == '' ? commonGrey6 :commonWhite)),
+                decoration: BoxDecoration(
+                  color: temString != widget.name ? commonGrey5 : themeYellow,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text('OK', style: bodyTitle(temString != widget.name ? commonGrey6 : commonWhite)),
               ),
             ),
           ],

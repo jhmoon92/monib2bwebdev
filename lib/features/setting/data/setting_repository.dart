@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../common/provider/sensing/sensing_api.dart';
+import '../../../common/provider/sensing/web_api.dart';
 import 'app_config_repository.dart';
 
 //import '../../auth/auth_index.dart';
@@ -95,7 +95,7 @@ class SettingRepository {
       //await localStorage.init();
       /// after preference loading, have to reset sensing api serverurl
       ///// check config version & setting version
-      if (serverUrl != AppConfigRepository.instance.serverUrl) SensingApi.instance.setServerApi(serverUrl);
+      // if (serverUrl != AppConfigRepository.instance.serverUrl) SensingApi.instance.setServerApi(serverUrl);
     } catch (e) {
       ///TODO :
     }

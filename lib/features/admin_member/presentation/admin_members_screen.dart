@@ -1,33 +1,21 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
-
+import 'package:moni_pod_web/features/admin_member/application/member_view_model.dart';
+import '../../../common/provider/sensing/member_resp.dart';
+import '../../../common_widgets/async_value_widget.dart';
 import '../../../common_widgets/button.dart';
 import '../../../common_widgets/delete_dialog.dart';
+import '../../../common_widgets/fail_dialog.dart';
 import '../../../common_widgets/input_box.dart';
+import '../../../common_widgets/success_dialog.dart';
+import '../../../common_widgets/warning_dialog.dart';
 import '../../../config/style.dart';
 import '../../home/presentation/base_screen.dart';
-import '../../manage_building/domain/unit_model.dart';
+import '../domain/member_model.dart';
 import 'invite_member_dialog.dart';
 import 'edit_member_dialog.dart';
-
-class MemberCardData {
-  final String name;
-  final String role;
-  final bool isActive;
-  final String accountEmail;
-  final String phoneNumber;
-  final String assignedRegion;
-
-  MemberCardData({
-    required this.name,
-    required this.role,
-    required this.isActive,
-    required this.accountEmail,
-    required this.phoneNumber,
-    required this.assignedRegion,
-  });
-}
 
 class AdminMembersScreen extends ConsumerStatefulWidget {
   const AdminMembersScreen({super.key});
@@ -39,16 +27,51 @@ class AdminMembersScreen extends ConsumerStatefulWidget {
 class _AdminMembersScreenState extends ConsumerState<AdminMembersScreen> {
   DateTime _lastUpdatedTime = DateTime.now();
   TextEditingController controller = TextEditingController();
+  List<Member> memberList = [];
+  String _searchQuery = "";
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          Padding(padding: EdgeInsets.symmetric(horizontal: 24), child: Column(children: [_buildHeader(), const SizedBox(height: 16)])),
-          _buildResponsiveMemberGrid(),
-        ],
-      ),
+    return AsyncProviderWidget(
+      provider: memberViewModelProvider,
+      onTry: () async {
+        ref.read(memberViewModelProvider.notifier).fetchData();
+      },
+      data: (data) {
+        memberList = data as List<Member>;
+
+        memberList = _searchQuery.isEmpty
+            ? memberList
+            : memberList.where((member) =>
+            member.name.toLowerCase().contains(_searchQuery.toLowerCase())
+        ).toList();
+
+        memberList.sort((a, b) {
+          int getPriority(int authority) {
+            switch (authority) {
+              case 1:
+                return 1;
+              case 20:
+                return 2;
+              case 50:
+                return 3;
+              default:
+                return 4; // etc
+            }
+          }
+
+          return getPriority(a.authority).compareTo(getPriority(b.authority));
+        });
+
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              Padding(padding: EdgeInsets.symmetric(horizontal: 24), child: Column(children: [_buildHeader(), const SizedBox(height: 16)])),
+              _buildResponsiveMemberGrid(),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -81,6 +104,11 @@ class _AdminMembersScreenState extends ConsumerState<AdminMembersScreen> {
                     validator: (value) {
                       return null;
                     },
+                    onChanged: (val) {
+                      setState(() {
+                        _searchQuery = val ?? "";
+                      });
+                    },
                   ),
                 )
                 : SizedBox(
@@ -96,11 +124,20 @@ class _AdminMembersScreenState extends ConsumerState<AdminMembersScreen> {
                     validator: (value) {
                       return null;
                     },
+                    onChanged: (val) {
+                      setState(() {
+                        _searchQuery = val ?? "";
+                      });
+                    },
                   ),
                 ),
             const SizedBox(width: 12),
             InkWell(
-              onTap: () {},
+              onTap: () {
+                setState(() {
+                  _searchQuery = controller.text.trim();
+                });
+              },
               child: Container(
                 height: 40,
                 width: 116,
@@ -145,7 +182,7 @@ class _AdminMembersScreenState extends ConsumerState<AdminMembersScreen> {
             spacing: spacing,
             runSpacing: spacing,
             children:
-                members.map((data) {
+                memberList.map((data) {
                   return SizedBox(width: itemWidth, child: MemberCard(data: data));
                 }).toList(),
           );
@@ -156,7 +193,7 @@ class _AdminMembersScreenState extends ConsumerState<AdminMembersScreen> {
 }
 
 class MemberCard extends ConsumerStatefulWidget {
-  final MemberCardData data;
+  final Member data;
 
   const MemberCard({required this.data, super.key});
 
@@ -192,19 +229,23 @@ class _MemberCardState extends ConsumerState<MemberCard> {
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color:
-                                widget.data.role == 'MASTER'
+                                widget.data.authority == 1
                                     ? commonGrey7
-                                    : widget.data.role == 'SUBMASTER (MANAGER)'
+                                    : widget.data.authority == 20 || widget.data.authority == 50
                                     ? newBlueBg1
                                     : commonGrey1,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            widget.data.role,
+                            widget.data.authority == 1
+                                ? 'MASTER'
+                                : widget.data.authority == 20 || widget.data.authority == 50
+                                ? 'SUBMASTER (MANAGER)'
+                                : 'RESIDENT',
                             style: captionTitle(
-                              widget.data.role == 'MASTER'
+                              widget.data.authority == 1
                                   ? commonWhite
-                                  : widget.data.role == 'SUBMASTER (MANAGER)'
+                                  : widget.data.authority == 20 || widget.data.authority == 50
                                   ? newBlue
                                   : commonGrey5,
                             ),
@@ -230,9 +271,9 @@ class _MemberCardState extends ConsumerState<MemberCard> {
                       children: [
                         CircleAvatar(
                           backgroundColor:
-                              widget.data.role == 'MASTER'
+                              widget.data.authority == 1
                                   ? themeYellow
-                                  : widget.data.role == 'SUBMASTER (MANAGER)'
+                                  : widget.data.authority == 20 || widget.data.authority == 50
                                   ? newBlue
                                   : commonGrey5,
                           radius: 32,
@@ -251,13 +292,17 @@ class _MemberCardState extends ConsumerState<MemberCard> {
                                   height: 8,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: widget.data.isActive ? successGreen : commonGrey5,
+                                    color: widget.data.status == 0 ? successGreen : commonGrey5,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  widget.data.isActive ? 'Active' : 'Inactive',
-                                  style: captionPoint(widget.data.isActive ? commonGrey7 : commonGrey5),
+                                  widget.data.status == 0
+                                      ? 'Active'
+                                      : widget.data.status == 1
+                                      ? 'Pending'
+                                      : 'Lock',
+                                  style: captionPoint(commonGrey7),
                                 ),
                               ],
                             ),
@@ -276,7 +321,7 @@ class _MemberCardState extends ConsumerState<MemberCard> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  widget.data.accountEmail,
+                                  widget.data.email,
                                   style: bodyCommon(commonGrey6),
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
@@ -291,7 +336,7 @@ class _MemberCardState extends ConsumerState<MemberCard> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  widget.data.phoneNumber,
+                                  widget.data.phoneNumber ?? '-',
                                   style: bodyCommon(commonGrey6),
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
@@ -313,25 +358,24 @@ class _MemberCardState extends ConsumerState<MemberCard> {
                           colorFilter: ColorFilter.mode(commonBlack, BlendMode.srcIn),
                         ),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: Wrap(
-                            spacing: 8.0, // 좌우 간격
-                            runSpacing: 8.0, // 상하 간격 (줄바꿈 발생 시)
-                            children:
-                                [widget.data.assignedRegion]
-                                    .map(
-                                      (item) => Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(color: commonGrey1, borderRadius: BorderRadius.circular(16)),
-                                        child: Text(
-                                          item,
-                                          style: captionTitle(commonGrey5),
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                          ),
-                        ),
+                        widget.data.assignedBuildings.isNotEmpty
+                            ? Expanded(
+                              child: Wrap(
+                                spacing: 8.0, // 좌우 간격
+                                runSpacing: 8.0, // 상하 간격 (줄바꿈 발생 시)
+                                children:
+                                    widget.data.assignedBuildings
+                                        .map(
+                                          (item) => Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(color: commonGrey1, borderRadius: BorderRadius.circular(16)),
+                                            child: Text(item, style: captionTitle(commonGrey5)),
+                                          ),
+                                        )
+                                        .toList(),
+                              ),
+                            )
+                            : Text('-', style: bodyCommon(commonGrey6), overflow: TextOverflow.ellipsis, maxLines: 1),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -345,7 +389,16 @@ class _MemberCardState extends ConsumerState<MemberCard> {
                           colorFilter: ColorFilter.mode(commonBlack, BlendMode.srcIn),
                         ),
                         const SizedBox(width: 8),
-                        Text('2023-11-25 09:30', style: bodyCommon(commonGrey6), overflow: TextOverflow.ellipsis, maxLines: 1),
+                        Text(
+                          widget.data.lastLoginDate != ''
+                              ? DateFormat(
+                                'yyyy-MM-dd HH:mm',
+                              ).format(widget.data.lastLoginDate != null ? DateTime.parse(widget.data.lastLoginDate!) : DateTime.now())
+                              : '-',
+                          style: bodyCommon(commonGrey6),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -360,7 +413,7 @@ class _MemberCardState extends ConsumerState<MemberCard> {
               top: 60,
               right: 24,
               child: Container(
-                height: 140,
+                height: widget.data.status == 1 ? 100 : 140,
                 width: 100,
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -394,7 +447,28 @@ class _MemberCardState extends ConsumerState<MemberCard> {
                           setState(() {
                             _isOverlayVisible = false;
                           });
-                          showDeleteDialog(context, controller: controller, onDelete: () {}, name: 'member name');
+                          showDeleteDialog(
+                            context,
+                            onDelete: () async {
+                              try {
+                                await ref.read(memberViewModelProvider.notifier).deleteMember(widget.data.id.toString());
+                                if (context.mounted) {
+                                  Navigator.of(context).pop();
+                                  showSuccessDialog(context, 'The ${widget.data.name} is deleted.');
+                                }
+                              } on Exception catch (e) {
+                                showFailDialog(
+                                  context,
+                                  'Failed to add unit',
+                                  'Something went wrong while deleting the member. Please try again.',
+                                  () {
+                                    Navigator.of(context).pop();
+                                  },
+                                );
+                              }
+                            },
+                            name: widget.data.name,
+                          );
                         },
                         child: Row(
                           children: [
@@ -405,23 +479,53 @@ class _MemberCardState extends ConsumerState<MemberCard> {
                         ),
                       ),
                     ),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            _isOverlayVisible = false;
-                          });
-                        },
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.lock_outline, size: 16, color: themeYellow),
-                            const SizedBox(width: 4),
-                            Text('Suspend', style: bodyCommon(themeYellow)),
-                          ],
-                        ),
-                      ),
-                    ),
+                    widget.data.status == 2
+                        ? Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _isOverlayVisible = false;
+                                showWarningDialog(context, () async {
+                                  Member updatedMember = widget.data.copyWith(status: 0);
+                                  await ref.read(memberViewModelProvider.notifier).updateMember(updatedMember);
+                                  await ref.read(memberViewModelProvider.notifier).fetchData();
+                                }, "Are your sure to unlock this member?");
+                              });
+                            },
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                Icon(Icons.lock_open_outlined, size: 16, color: successGreen),
+                                const SizedBox(width: 4),
+                                Text('Unlock', style: bodyCommon(successGreen)),
+                              ],
+                            ),
+                          ),
+                        )
+                        : widget.data.status == 0
+                        ? Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _isOverlayVisible = false;
+                                showWarningDialog(context, () async {
+                                  Member updatedMember = widget.data.copyWith(status: 2);
+                                  await ref.read(memberViewModelProvider.notifier).updateMember(updatedMember);
+                                  await ref.read(memberViewModelProvider.notifier).fetchData();
+                                }, "Are your sure to lock this member?");
+                              });
+                            },
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                Icon(Icons.lock_outline, size: 16, color: themeYellow),
+                                const SizedBox(width: 4),
+                                Text('Lock', style: bodyCommon(themeYellow)),
+                              ],
+                            ),
+                          ),
+                        )
+                        : Container(),
                   ],
                 ),
               ),

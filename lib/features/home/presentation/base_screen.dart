@@ -144,6 +144,7 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                                       InkWell(
                                         onTap: () {
                                           setState(() {
+
                                             context.goNamed(AppRoute.signIn.name);
                                             // _viewSignOut = !_viewSignOut;
                                           });
@@ -229,13 +230,13 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                     iconPath,
                     colorFilter: ColorFilter.mode(selectMenu == index ? commonWhite : commonBlack, BlendMode.srcIn),
                   ),
-                  title == 'Alerts' && alertList.where((alert) => alert.isNew).isNotEmpty
-                      ? Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: newBlue)),
-                      )
-                      : Container(),
+                  // title == 'Alerts' && alertList.where((alert) => alert.isNew).isNotEmpty
+                  //     ? Positioned(
+                  //       top: 0,
+                  //       right: 0,
+                  //       child: Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: newBlue)),
+                  //     )
+                  //     : Container(),
                 ],
               ),
             ),
@@ -250,25 +251,25 @@ class _BaseScreenState extends ConsumerState<BaseScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            title == 'Alerts' && alertList.where((alert) => alert.isNew).isNotEmpty
-                ? AnimatedOpacity(
-                  opacity: _isExpanded ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    margin: const EdgeInsets.only(left: 70),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: newBlue),
-                    child: Text(
-                      alertList.where((alert) => alert.isNew).length.toString(),
-                      style: captionTitle(commonWhite),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                )
-                : Container(),
+            // title == 'Alerts' && alertList.where((alert) => alert.isNew).isNotEmpty
+            //     ? AnimatedOpacity(
+            //       opacity: _isExpanded ? 1.0 : 0.0,
+            //       duration: const Duration(milliseconds: 200),
+            //       child: Container(
+            //         width: 24,
+            //         height: 24,
+            //         margin: const EdgeInsets.only(left: 70),
+            //         alignment: Alignment.center,
+            //         decoration: BoxDecoration(shape: BoxShape.circle, color: newBlue),
+            //         child: Text(
+            //           alertList.where((alert) => alert.isNew).length.toString(),
+            //           style: captionTitle(commonWhite),
+            //           maxLines: 1,
+            //           overflow: TextOverflow.ellipsis,
+            //         ),
+            //       ),
+            //     )
+            //     : Container(),
           ],
         ),
       ),

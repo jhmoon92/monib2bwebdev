@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import 'package:moni_pod_web/common_widgets/button.dart';
 import 'package:moni_pod_web/config/style.dart';
-import 'package:moni_pod_web/features/account/presentation/account_list_screen.dart';
-import 'package:moni_pod_web/features/home/presentation/base_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+
 
 import '../../../common/util/validators.dart';
 import '../../../common_widgets/input_box.dart';
-import '../../../router.dart';
-import '../auth_provider.dart';
+import '../controller/auth_controller.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   final String apiBaseUrl;
@@ -116,8 +110,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> with EmailAndPasswo
                             textType: "email",
                             label: "Enter your email",
                             // initialText: "hjkang1@humax-networks.com",
-                            // initialText: "jylee7@humax-networks.com",
-                            // initialText: "mon5315@hanmail.net",
+                            // initialText: "jhmoon@humax-networks.com",
+                            initialText: "mon5315@naver.com",
+                            // initialText: "mon5315@naver.com",
                             // initialText: "sense.demo2@gmail.com",
                             // initialText: "sp.jylee7@gmail.com",
                             isErrorText: true,
@@ -179,8 +174,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> with EmailAndPasswo
                             label: "Enter your password",
                             // initialText: "a359738359738!",
                             // initialText: "#52471292",
-                            // initialText: "!27106915",
-                            // initialText: "@test12345",
+                            // initialText: "#8091410",
+                            initialText: "@test12345",
                             // initialText: "*51518981",
                             onSaved: (val) {},
                             validator: (val) {
@@ -250,8 +245,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> with EmailAndPasswo
                           // ),
                           Button(
                             label: 'Sign in',
-                            onClick: () {
-                              context.go(AppRoute.home.path);
+                            onClick: () async {
+                              await ref.read(authControllerProvider.notifier).signIn(_emailController.text, _passwordController.text);
+                              // context.go(AppRoute.home.path);
                             },
                             backgroundColor: themeYellow,
                           ),

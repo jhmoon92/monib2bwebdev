@@ -78,7 +78,8 @@ class _CustomDropdownState extends State<CustomDropdown> {
       ),
 
       itemBuilder: (BuildContext context) {
-        List<String> items = buildings.map((building) => building.name).toList();
+        List<String> items = [];
+        // List<String> items = buildings.map((building) => building.name).toList();
         items.insert(0, 'All Buildings');
         return items.map((String item) {
           final bool isSelected = item == selectedValue;

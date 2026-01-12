@@ -71,7 +71,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Expanded(
                     child: InkWell(
                       onTap: () {
-                        showCriticalUnitsDialog(context, true);
+                        // showCriticalUnitsDialog(context, true);
                       },
                       child: Container(
                         width: double.infinity,
@@ -111,7 +111,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Expanded(
                     child: InkWell(
                       onTap: () {
-                        showCriticalUnitsDialog(context, false);
+                        // showCriticalUnitsDialog(context, false);
                       },
                       child: Container(
                         width: double.infinity,
